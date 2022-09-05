@@ -1,11 +1,14 @@
 import sys, os, configparser
-from tkinter.tix import ButtonBox
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QWidget, QAction, QTabWidget, QVBoxLayout, QHBoxLayout, QComboBox, QLabel, QMenu, QMenuBar, QFileDialog, QTableWidget, QTableWidgetItem, QDialogButtonBox, QDialog
+import json
+from turtle import forward
+from PyQt5 import QtWidgets, QtGui, QtCore
+from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QWidget, QTabWidget, QVBoxLayout, QMenu, QMenuBar, QFileDialog, QDialogButtonBox, QDialog, QGridLayout, QGroupBox, QComboBox, QTableView
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import pyqtSlot, Qt
+from PyQt5.QtCore import pyqtSlot, Qt, QAbstractTableModel
 from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
+from download import downloader
+import pandas as pd
 
 class App(QMainWindow):
     def __init__(self):
@@ -60,6 +63,29 @@ class YesOrNoDialog(QDialog):
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.buttonBox)
         self.setLayout(self.layout)
+
+class pandasModel(QAbstractTableModel):
+
+    def __init__(self, data):
+        QAbstractTableModel.__init__(self)
+        self._data = data
+
+    def rowCount(self, parent=None):
+        return self._data.shape[0]
+
+    def columnCount(self, parnet=None):
+        return self._data.shape[1]
+
+    def data(self, index, role=Qt.DisplayRole):
+        if index.isValid():
+            if role == Qt.DisplayRole:
+                return str(self._data.iloc[index.row(), index.column()])
+        return None
+
+    def headerData(self, col, orientation, role):
+        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+            return self._data.columns[col]
+        return None
     
 class MainWidget(QWidget):
     def __init__(self, parent):
@@ -80,34 +106,141 @@ class MainWidget(QWidget):
         self.playerStats.layout = QVBoxLayout(self.playerStats)
         self.teamStats.layout = QVBoxLayout(self.teamStats)
 
-        self.graphWidget = pg.PlotWidget()
-        hour = [1,2,3,4,5,6,7,8]
-        temperature = [30,32,34,32,33,31,29,32]
-        self.graphWidget.plot(hour, temperature)
+        file = open("data\\bootstrap-static.json", "rb")
+        data = file.read()
+        file.close()
+        datalist = json.loads(data)
+        elements = datalist["elements"]
 
-        self.tableWidget = QTableWidget()
-        self.tableWidget.setRowCount(4)
-        self.tableWidget.setColumnCount(2)
-        self.tableWidget.setItem(0,0, QTableWidgetItem("1"))
-        self.tableWidget.setItem(0,1, QTableWidgetItem("2"))
-        self.tableWidget.setItem(1,0, QTableWidgetItem("3"))
-        self.tableWidget.setItem(1,1, QTableWidgetItem("4"))
-        self.tableWidget.setItem(2,0, QTableWidgetItem("5"))
-        self.tableWidget.setItem(2,1, QTableWidgetItem("6"))
-        self.tableWidget.setItem(3,0, QTableWidgetItem("7"))
-        self.tableWidget.setItem(3,1, QTableWidgetItem("8"))
-        self.tableWidget.move(0,0)
+        self.dataframe = pd.DataFrame.from_dict(elements)
 
-        self.teamStats.layout.addWidget(self.graphWidget)
-        self.teamStats.setLayout(self.teamStats.layout)
+        self.sortSelector = QComboBox()
+        items = ["Alphabetical", "Total Points", "Points Per Game"]
+        self.sortSelector.addItems(items)
+        self.sortSelector.currentIndexChanged.connect(self.setOrder)
+
+        self.resetButton = QPushButton("Reset")
+        self.resetButton.clicked.connect(self.reset)
+
+        self.teamLayout = QGroupBox("My Team")
+        layout = QGridLayout()
         
-        self.playerStats.layout.addWidget(self.tableWidget)
-        self.playerStats.setLayout(self.playerStats.layout)
+        self.forward1 = QComboBox()
+        self.forward2 = QComboBox()
+        self.midfielder1 = QComboBox()
+        self.midfielder2 = QComboBox()
+        self.midfielder3 = QComboBox()
+        self.defender1 = QComboBox()
+        self.defender2 = QComboBox()
+        self.defender3 = QComboBox()
+        self.defender4 = QComboBox()
+        self.defender5 = QComboBox()
+        self.goalkeeper = QComboBox()
+
+        layout.addWidget(self.forward1,0,1)
+        layout.addWidget(self.forward2,0,3)
+        layout.addWidget(self.midfielder1,1,1)
+        layout.addWidget(self.midfielder2,1,2)
+        layout.addWidget(self.midfielder3,1,3)
+        layout.addWidget(self.defender1,2,0)
+        layout.addWidget(self.defender2,2,1)
+        layout.addWidget(self.defender3,2,2)
+        layout.addWidget(self.defender4,2,3)
+        layout.addWidget(self.defender5,2,4)
+        layout.addWidget(self.goalkeeper,3,2)
+
+        self.setOrder(1)
+        
+        self.teamLayout.setLayout(layout)
+        self.createPlayerTable()
+
+        self.myTeam.layout.addWidget(self.teamLayout)
+        self.myTeam.layout.addWidget(self.sortSelector)
+        self.myTeam.layout.addWidget(self.resetButton)
+        self.myTeam.setLayout(self.myTeam.layout)
+        self.playerStats.layout.addWidget(self.playerslayout)
         
         self.layout.addWidget(self.tabs)
         self.setLayout(self.layout)
 
+    def setOrder(self, type):
+        if type == 0:
+            dataframe = self.dataframe.sort_values("second_name")
+        elif type == 1:
+            dataframe = self.dataframe.sort_values("total_points")
+        elif type == 2:
+            dataframe = self.dataframe.sort_values("points_per_game")
+        self.dataframe = dataframe
+        self.populateDropDowns()
+
+    def populateDropDowns(self):
+        self.goalkeepers = self.createPlayerLists(1)
+        self.goalkeeper.clear()
+        self.goalkeeper.addItems(self.goalkeepers)
+        self.defenders = self.createPlayerLists(2)
+        self.defender1.clear()
+        self.defender2.clear()
+        self.defender3.clear()
+        self.defender4.clear()
+        self.defender5.clear()
+        self.defender1.addItems(self.defenders)
+        self.defender2.addItems(self.defenders)
+        self.defender3.addItems(self.defenders)
+        self.defender4.addItems(self.defenders)
+        self.defender5.addItems(self.defenders)
+        self.midfielders = self.createPlayerLists(3)
+        self.midfielder1.clear()
+        self.midfielder2.clear()
+        self.midfielder3.clear()
+        self.midfielder1.addItems(self.midfielders)
+        self.midfielder2.addItems(self.midfielders)
+        self.midfielder3.addItems(self.midfielders)
+        self.attackers = self.createPlayerLists(4)
+        self.forward1.clear()
+        self.forward2.clear()
+        self.forward1.addItems(self.attackers)
+        self.forward2.addItems(self.attackers)
+        self.sortSelector.update()
+
+    def createPlayerLists(self, typenum):
+        playersframe = self.dataframe[self.dataframe["element_type"]==typenum]
+        playersfirstname = playersframe["first_name"].tolist()
+        playerssecondname = playersframe["second_name"].tolist()
+        players = []
+        for i in range(len(playersfirstname)):
+            players.append(playersfirstname[i] + " " + playerssecondname[i])
+        return players
+
+    def createPlayerTable(self):
+        dataframe = self.dataframe
+        tableframe = dataframe[["first_name", 
+        "second_name", 
+        "total_points", 
+        "points_per_game", 
+        "yellow_cards", 
+        "red_cards", 
+        "goals_scored", 
+        "assists", 
+        "goals_conceded", 
+        "saves"]]
+        self.playerslayout = QTableView()
+        playertable = pandasModel(tableframe)
+        self.playerslayout.setModel(playertable)
+
+    def reset(self):
+        self.setOrder(0)        
+        
+def onStart():
+    file = open("users_config.json", "r")
+    userdata = file.read()
+    userdata = json.loads(userdata)
+    file.close()
+    #downloader.DataReader.getUserData(userdata[2])
+    downloader.getUsersTeam(2)
+
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    ex = App()
-    sys.exit(app.exec_())
+    #downloader.downloadToDataFrame("https://fantasy.premierleague.com/api/bootstrap-static/")
+    onStart()
+    #app = QApplication(sys.argv)
+    #ex = App() 
+    #sys.exit(app.exec_())

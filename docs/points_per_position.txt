@@ -1,0 +1,12 @@
+element_type       1.000000
+points_per_game    3.135714
+dtype: float64
+element_type       2.000000
+points_per_game    2.689503
+dtype: float64
+element_type       3.000000
+points_per_game    2.469198
+dtype: float64
+element_type       4.000000
+points_per_game    2.494521
+dtype: float64
