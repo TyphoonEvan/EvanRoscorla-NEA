@@ -9,9 +9,10 @@ from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
 from download import downloader
 import pandas as pd
+import requests
 
 class App(QMainWindow):
-    def __init__(self):
+    def __init__(self, teamdict):
         super().__init__()
         self.title = "Fantasy Premier League"
         self.left = 0
@@ -20,8 +21,9 @@ class App(QMainWindow):
         self.height = 800
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
+        self.teamdict = teamdict
         
-        self.mainWidget = MainWidget(self)
+        self.mainWidget = MainWidget(self, self.teamdict)
         self.setCentralWidget(self.mainWidget)
                 
         self.createMenuBar()
@@ -88,9 +90,10 @@ class pandasModel(QAbstractTableModel):
         return None
     
 class MainWidget(QWidget):
-    def __init__(self, parent):
+    def __init__(self, parent, teamdict):
         super(QWidget, self).__init__(parent)
         self.layout = QVBoxLayout(self)
+        self.teamdict = teamdict
 
         self.tabs = QTabWidget()
         self.myTeam = QWidget()
@@ -149,7 +152,7 @@ class MainWidget(QWidget):
         layout.addWidget(self.defender5,2,4)
         layout.addWidget(self.goalkeeper,3,2)
 
-        self.setOrder(1)
+        self.setPlayerTeam()
         
         self.teamLayout.setLayout(layout)
         self.createPlayerTable()
@@ -174,10 +177,10 @@ class MainWidget(QWidget):
         self.populateDropDowns()
 
     def populateDropDowns(self):
-        self.goalkeepers = self.createPlayerLists(1)
+        self.goalkeepers = self.createPlayerLists(1, False)
         self.goalkeeper.clear()
         self.goalkeeper.addItems(self.goalkeepers)
-        self.defenders = self.createPlayerLists(2)
+        self.defenders = self.createPlayerLists(2, False)
         self.defender1.clear()
         self.defender2.clear()
         self.defender3.clear()
@@ -188,27 +191,39 @@ class MainWidget(QWidget):
         self.defender3.addItems(self.defenders)
         self.defender4.addItems(self.defenders)
         self.defender5.addItems(self.defenders)
-        self.midfielders = self.createPlayerLists(3)
+        self.midfielders = self.createPlayerLists(3, False)
         self.midfielder1.clear()
         self.midfielder2.clear()
         self.midfielder3.clear()
         self.midfielder1.addItems(self.midfielders)
         self.midfielder2.addItems(self.midfielders)
         self.midfielder3.addItems(self.midfielders)
-        self.attackers = self.createPlayerLists(4)
+        self.attackers = self.createPlayerLists(4, False)
         self.forward1.clear()
         self.forward2.clear()
         self.forward1.addItems(self.attackers)
         self.forward2.addItems(self.attackers)
         self.sortSelector.update()
 
-    def createPlayerLists(self, typenum):
+    def createPlayerLists(self, typenum, isplayerteam):
+        if isplayerteam == True:
+            currentplayer = self.dataframe[self.dataframe["id"]==self.currentid]
+            currentplayer = currentplayer.to_dict()
+            currentfirstname = currentplayer["first_name"]
+            currentfirstname = currentfirstname[self.currentid]
+            currentsecondname = currentplayer["second_name"]
+            currentsecondname = currentsecondname[self.currentid]
+            currentname = currentfirstname + " " + currentsecondname
         playersframe = self.dataframe[self.dataframe["element_type"]==typenum]
-        playersfirstname = playersframe["first_name"].tolist()
-        playerssecondname = playersframe["second_name"].tolist()
+        playersfirstname = playersframe["first_name"]
+        playerssecondname = playersframe["second_name"]
         players = []
         for i in range(len(playersfirstname)):
             players.append(playersfirstname[i] + " " + playerssecondname[i])
+        if isplayerteam == True:
+            playerpos = players.index(currentname)
+            players.pop(playerpos)
+            players.insert(0, currentname)
         return players
 
     def createPlayerTable(self):
@@ -228,19 +243,74 @@ class MainWidget(QWidget):
         self.playerslayout.setModel(playertable)
 
     def reset(self):
-        self.setOrder(0)        
+        self.setPlayerTeam
+
+    def setPlayerTeam(self):
+        self.dataframe = self.dataframe.sort_values("second_name")
+        idslist = self.teamdict["element"]
+        self.currentid = idslist[0]
+        self.goalkeepers = self.createPlayerLists(1, True)
+        self.goalkeeper.clear()
+        self.goalkeeper.addItems(self.goalkeepers)
+        self.currentid = idslist[1]
+        self.defenders = self.createPlayerLists(2, True)
+        self.defenders.clear()
+        self.defender1.addItems(self.defenders)
+        self.currentid = idslist[2]
+        self.defenders = self.createPlayerLists(2, True)
+        self.defenders.clear()
+        self.defender2.addItems(self.defenders)
+        self.currentid = idslist[3]
+        self.defenders = self.createPlayerLists(2, True)
+        self.defenders.clear()
+        self.defender3.addItems(self.defenders)
+        self.currentid = idslist[4]
+        self.defenders = self.createPlayerLists(2, True)
+        self.defenders.clear()
+        self.defender4.addItems(self.defenders)
+        self.currentid = idslist[5]
+        self.defenders = self.createPlayerLists(2, True)
+        self.defenders.clear()
+        self.defender5.addItems(self.defenders)
+        self.currentid = idslist[6]
+        self.midfielders = self.createPlayerLists(3, True)
+        self.midfielders.clear()
+        self.midfielder1.addItems(self.midfielders)
+        self.currentid = idslist[7]
+        self.midfielders = self.createPlayerLists(3, True)
+        self.midfielders.clear()
+        self.midfielder2.addItems(self.midfielders)
+        self.currentid = idslist[8]
+        self.midfielders = self.createPlayerLists(3, True)
+        self.midfielders.clear()
+        self.midfielder3.addItems(self.midfielders)
+        self.currentid = idslist[9]
+        self.attackers = self.createPlayerLists(4, True)
+        self.attackers.clear()
+        self.forward1.addItems(self.attackers)
+        self.currentid = idslist[10]
+        self.attackers = self.createPlayerLists(4, True)
+        self.attackers.clear()
+        self.forward2.addItems(self.attackers)
+        self.sortSelector.update()
+
         
 def onStart():
     file = open("users_config.json", "r")
     userdata = file.read()
     userdata = json.loads(userdata)
     file.close()
+    response = requests.get("https://fantasy.premierleague.com/api/bootstrap-static/", allow_redirects=True)
+    f = open("data\\bootstrap-static.json", "wb")
+    f.write(response.content)
+    f.close()
     #downloader.DataReader.getUserData(userdata[2])
-    downloader.getUsersTeam(2)
+    teamdict = downloader.getUsersTeam(2)
+    return teamdict
 
 if __name__ == '__main__':
     #downloader.downloadToDataFrame("https://fantasy.premierleague.com/api/bootstrap-static/")
-    onStart()
-    #app = QApplication(sys.argv)
-    #ex = App() 
-    #sys.exit(app.exec_())
+    teamdict = onStart()
+    app = QApplication(sys.argv)
+    ex = App(teamdict) 
+    sys.exit(app.exec_())

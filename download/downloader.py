@@ -111,5 +111,5 @@ def getUsersTeam(user):
     userteam = response["picks"]
     userteam = pd.DataFrame(userteam)
     refinedteam = userteam[["element", "position", "is_captain", "is_vice_captain"]]
-    
-    
+    teamdict = refinedteam.to_dict()
+    return teamdict
