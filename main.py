@@ -208,15 +208,12 @@ class MainWidget(QWidget):
     def createPlayerLists(self, typenum, isplayerteam):
         if isplayerteam == True:
             currentplayer = self.dataframe[self.dataframe["id"]==self.currentid]
-            currentplayer = currentplayer.to_dict()
-            currentfirstname = currentplayer["first_name"]
-            currentfirstname = currentfirstname[self.currentid]
-            currentsecondname = currentplayer["second_name"]
-            currentsecondname = currentsecondname[self.currentid]
+            currentfirstname = currentplayer.iloc[0, 12]
+            currentsecondname = currentplayer.iloc[0, 21]
             currentname = currentfirstname + " " + currentsecondname
         playersframe = self.dataframe[self.dataframe["element_type"]==typenum]
-        playersfirstname = playersframe["first_name"]
-        playerssecondname = playersframe["second_name"]
+        playersfirstname = playersframe["first_name"].to_list()
+        playerssecondname = playersframe["second_name"].to_list()
         players = []
         for i in range(len(playersfirstname)):
             players.append(playersfirstname[i] + " " + playerssecondname[i])
@@ -254,46 +251,45 @@ class MainWidget(QWidget):
         self.goalkeeper.addItems(self.goalkeepers)
         self.currentid = idslist[1]
         self.defenders = self.createPlayerLists(2, True)
-        self.defenders.clear()
+        self.defender1.clear()
         self.defender1.addItems(self.defenders)
         self.currentid = idslist[2]
         self.defenders = self.createPlayerLists(2, True)
-        self.defenders.clear()
+        self.defender2.clear()
         self.defender2.addItems(self.defenders)
         self.currentid = idslist[3]
         self.defenders = self.createPlayerLists(2, True)
-        self.defenders.clear()
+        self.defender3.clear()
         self.defender3.addItems(self.defenders)
         self.currentid = idslist[4]
         self.defenders = self.createPlayerLists(2, True)
-        self.defenders.clear()
+        self.defender4.clear()
         self.defender4.addItems(self.defenders)
         self.currentid = idslist[5]
         self.defenders = self.createPlayerLists(2, True)
-        self.defenders.clear()
+        self.defender5.clear()
         self.defender5.addItems(self.defenders)
         self.currentid = idslist[6]
         self.midfielders = self.createPlayerLists(3, True)
-        self.midfielders.clear()
+        self.midfielder1.clear()
         self.midfielder1.addItems(self.midfielders)
         self.currentid = idslist[7]
         self.midfielders = self.createPlayerLists(3, True)
-        self.midfielders.clear()
+        self.midfielder2.clear()
         self.midfielder2.addItems(self.midfielders)
         self.currentid = idslist[8]
         self.midfielders = self.createPlayerLists(3, True)
-        self.midfielders.clear()
+        self.midfielder3.clear()
         self.midfielder3.addItems(self.midfielders)
         self.currentid = idslist[9]
         self.attackers = self.createPlayerLists(4, True)
-        self.attackers.clear()
+        self.forward1.clear()
         self.forward1.addItems(self.attackers)
         self.currentid = idslist[10]
         self.attackers = self.createPlayerLists(4, True)
-        self.attackers.clear()
+        self.forward2.clear()
         self.forward2.addItems(self.attackers)
         self.sortSelector.update()
-
         
 def onStart():
     file = open("users_config.json", "r")
