@@ -127,7 +127,7 @@ class MainWidget(QWidget):
 
         self.teamLayout = QGroupBox("My Team")
         layout = QGridLayout()
-        
+        #creates dropdown
         self.forward1 = QComboBox()
         self.forward2 = QComboBox()
         self.midfielder1 = QComboBox()
@@ -139,7 +139,7 @@ class MainWidget(QWidget):
         self.defender4 = QComboBox()
         self.defender5 = QComboBox()
         self.goalkeeper = QComboBox()
-
+        #adds dropdowns to tab
         layout.addWidget(self.forward1,0,1)
         layout.addWidget(self.forward2,0,3)
         layout.addWidget(self.midfielder1,1,1)
@@ -177,9 +177,9 @@ class MainWidget(QWidget):
         self.populateDropDowns()
 
     def populateDropDowns(self):
-        self.goalkeepers = self.createPlayerLists(1, False)
-        self.goalkeeper.clear()
-        self.goalkeeper.addItems(self.goalkeepers)
+        self.goalkeepers = self.createPlayerLists(1, False)#creates the list of players
+        self.goalkeeper.clear()#clears current dropdown
+        self.goalkeeper.addItems(self.goalkeepers)#adds the new list to the dropdown
         self.defenders = self.createPlayerLists(2, False)
         self.defender1.clear()
         self.defender2.clear()
@@ -207,20 +207,20 @@ class MainWidget(QWidget):
 
     def createPlayerLists(self, typenum, isplayerteam):
         if isplayerteam == True:
-            currentplayer = self.dataframe[self.dataframe["id"]==self.currentid]
-            currentfirstname = currentplayer.iloc[0, 12]
-            currentsecondname = currentplayer.iloc[0, 21]
+            currentplayer = self.dataframe[self.dataframe["id"]==self.currentid]#gets player from the main dataframe
+            currentfirstname = currentplayer.iloc[0, 12]#gets first name
+            currentsecondname = currentplayer.iloc[0, 21]#gets first name
             currentname = currentfirstname + " " + currentsecondname
-        playersframe = self.dataframe[self.dataframe["element_type"]==typenum]
+        playersframe = self.dataframe[self.dataframe["element_type"]==typenum]#gets all players in a position
         playersfirstname = playersframe["first_name"].to_list()
         playerssecondname = playersframe["second_name"].to_list()
         players = []
         for i in range(len(playersfirstname)):
-            players.append(playersfirstname[i] + " " + playerssecondname[i])
+            players.append(playersfirstname[i] + " " + playerssecondname[i])#adds first and last names together
         if isplayerteam == True:
-            playerpos = players.index(currentname)
-            players.pop(playerpos)
-            players.insert(0, currentname)
+            playerpos = players.index(currentname)#finds player position in list
+            players.pop(playerpos)#removes player from list
+            players.insert(0, currentname)#adds player to first position
         return players
 
     def createPlayerTable(self):
@@ -245,10 +245,10 @@ class MainWidget(QWidget):
     def setPlayerTeam(self):
         self.dataframe = self.dataframe.sort_values("second_name")
         idslist = self.teamdict["element"]
-        self.currentid = idslist[0]
-        self.goalkeepers = self.createPlayerLists(1, True)
-        self.goalkeeper.clear()
-        self.goalkeeper.addItems(self.goalkeepers)
+        self.currentid = idslist[0]#gets goalkeeper id
+        self.goalkeepers = self.createPlayerLists(1, True)#creates the list of players
+        self.goalkeeper.clear()#clears current dropdown
+        self.goalkeeper.addItems(self.goalkeepers)#adds the new list to the dropdown
         self.currentid = idslist[1]
         self.defenders = self.createPlayerLists(2, True)
         self.defender1.clear()
