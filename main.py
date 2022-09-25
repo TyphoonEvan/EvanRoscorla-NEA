@@ -118,9 +118,11 @@ class MainWidget(QWidget):
         elements = datalist["elements"]
 
         self.dataframe = pd.DataFrame.from_dict(elements)
+        self.tempframe = self.dataframe
         self.firstnames = self.dataframe["first_name"].to_list()
         self.secondnames = self.dataframe["second_name"].to_list()
         self.prices = self.dataframe["now_cost"].to_list()
+        self.ids = self.dataframe["id"].to_list()
         self.fullnames = []
         for i in range(len(self.firstnames)):
             self.fullnames.append(self.firstnames[i] + " " + self.secondnames[i])
@@ -181,11 +183,11 @@ class MainWidget(QWidget):
 
     def setOrder(self, type):
         if type == 0:
-            dataframe = self.dataframe.sort_values("second_name")
+            dataframe = self.tempframe.sort_values("second_name")
         elif type == 1:
-            dataframe = self.dataframe.sort_values("total_points")
+            dataframe = self.tempframe.sort_values("total_points")
         elif type == 2:
-            dataframe = self.dataframe.sort_values("points_per_game")
+            dataframe = self.tempframe.sort_values("points_per_game")
         self.dataframe = dataframe
         self.populateDropDowns()
 
@@ -216,15 +218,16 @@ class MainWidget(QWidget):
         self.forward2.clear()
         self.forward1.addItems(self.attackers)
         self.forward2.addItems(self.attackers)
+        self.priceUpdate()
         self.sortSelector.update()
 
     def createPlayerLists(self, typenum, isplayerteam):
         if isplayerteam == True:
-            currentplayer = self.dataframe[self.dataframe["id"]==self.currentid]#gets player from the main dataframe
+            currentplayer = self.tempframe[self.tempframe["id"]==self.currentid]#gets player from the main dataframe
             currentfirstname = currentplayer.iloc[0, 12]#gets first name
             currentsecondname = currentplayer.iloc[0, 21]#gets first name
             currentname = currentfirstname + " " + currentsecondname
-        self.playersframe = self.dataframe[self.dataframe["element_type"]==typenum]#gets all players in a position
+        self.playersframe = self.tempframe[self.tempframe["element_type"]==typenum]#gets all players in a position
         playersfirstname = self.playersframe["first_name"].to_list()
         playerssecondname = self.playersframe["second_name"].to_list()
         self.players = []
@@ -256,7 +259,6 @@ class MainWidget(QWidget):
         self.setPlayerTeam()
 
     def priceUpdate(self):
-        playersframe = self.dataframe
         maxprice = 1000
         totalcost = 0
         dropdownslist = [self.goalkeeper, self.defender1, self.defender2, self.defender3, self.defender4, self.defender5, self.midfielder1, self.midfielder2, self.midfielder3, self.forward1, self.forward2]
@@ -270,10 +272,10 @@ class MainWidget(QWidget):
             totalcost-=cost
         remainingmoney = maxprice-totalcost
         for i in range(11):
-            currentdropdown = dropdownslist[i]
-            currentlist = [currentdropdown.itemText(j) for j in range(currentdropdown.count())]
-            for x in range(len(currentlist)):
-                currentprice = self.namesandprices[x]["price"]
+            self.tempframe = self.dataframe
+            for x in range(len(self.tempframe)):
+                if self.tempframe.iloc[x,18] > remainingmoney:
+                    self.tempframe = self.tempframe.drop(self.tempframe.index[x])
 
     def getGameWeek(self):
         self.today = date.today()
@@ -340,6 +342,7 @@ class MainWidget(QWidget):
         self.attackers = self.createPlayerLists(4, True)
         self.forward2.clear()
         self.forward2.addItems(self.attackers)
+        self.priceUpdate()
         self.sortSelector.update()
         
 def onStart():
