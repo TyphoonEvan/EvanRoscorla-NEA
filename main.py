@@ -275,7 +275,7 @@ class MainWidget(QWidget):
             self.tempframe = self.dataframe
             for x in range(len(self.tempframe)):
                 if self.tempframe.iloc[x,18] > remainingmoney:
-                    self.tempframe = self.tempframe.drop(self.tempframe.index[x])
+                    self.tempframe.drop(self.tempframe.index[x])
 
     def getGameWeek(self):
         self.today = date.today()

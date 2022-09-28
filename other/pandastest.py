@@ -1,21 +1,35 @@
 import pandas as pd
 import json
 import numpy as np
+import requests
 
-file = open("data\\bootstrap-static.json", "rb")
-data = file.read()
-file.close()
-datalist = json.loads(data)
-elements = datalist["elements"]
+r = requests.get("https://fantasy.premierleague.com/api/element-summary/158/")
+data = json.loads(r.content)
+dataframe = pd.json_normalize(data["history"])
+refinedframe = dataframe[["element", "total_points", "goals_scored", "assists", "minutes", "round"]]
 
-dataframe = pd.DataFrame.from_dict(elements)
-#newdataframe = dataframe[["element_type", "points_per_game"]].astype({"points_per_game": "float"})
-#nonzeroframe = newdataframe[newdataframe["points_per_game"] != 0.0]
-#dataframegk = nonzeroframe[nonzeroframe["element_type"] == 1]
-#print(dataframegk.mean())
-#dataframedef = nonzeroframe[nonzeroframe["element_type"] == 2]
-#print(dataframedef.mean())
-#dataframemid = nonzeroframe[nonzeroframe["element_type"] == 3]
-#print(dataframemid.mean())
-#dataframeatk = nonzeroframe[nonzeroframe["element_type"] == 4]
-#print(dataframeatk.mean())
+def getPoints(dataframe):
+    meanpoints = dataframe["total_points"].mean()
+    currentpoints = dataframe.iloc[dataframe.shape[0]-1, 1]
+    if currentpoints > meanpoints:
+        return "+"
+    elif currentpoints == meanpoints:
+        return "="
+    else:
+        return "-"
+
+print(getPoints(refinedframe))
+
+def getTrend(dataframe):
+    trend = []
+    for i in range(dataframe.shape[0]-1):
+        currentval = dataframe.iloc[i, 1]
+        try:
+            prevval = dataframe.iloc[i-1, 1]
+        except IndexError:
+            prevval = 0
+        difference = currentval-prevval
+        trend.append(difference)
+    return trend
+
+print(getTrend(refinedframe))
