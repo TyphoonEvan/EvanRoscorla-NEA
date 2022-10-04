@@ -5,7 +5,7 @@ import requests
 
 pd.options.mode.chained_assignment = None
 
-r = requests.get("https://fantasy.premierleague.com/api/element-summary/158/")
+r = requests.get("https://fantasy.premierleague.com/api/element-summary/67/")
 data = json.loads(r.content)
 dataframe = pd.json_normalize(data["history"])
 refinedframe = dataframe[["element", "total_points", "goals_scored", "assists", "minutes", "round"]]
@@ -139,8 +139,8 @@ def getOverallForm(refinedframe, mergedframe):
     rating = 50.00 + (16.66*averagechange.count("+") + (-16.66)*averagechange.count("-"))
     rating = rating * (averagetime/90)
     rating = rating * (played/(played+notplayed))
-    predictedpoints = currentpoints * (rating+50)
-    return rating, predictedpoints
+    predictedpoints = currentpoints * ((rating+50)/100)
+    return str(int(rating))+"%", float(f'{predictedpoints:.2f}')
 
 userteam = getUsersTeam("user")
 userelements = userteam["element"]
