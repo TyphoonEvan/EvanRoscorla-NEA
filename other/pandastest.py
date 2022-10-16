@@ -5,149 +5,95 @@ import requests
 
 pd.options.mode.chained_assignment = None
 
-r = requests.get("https://fantasy.premierleague.com/api/element-summary/67/")
-data = json.loads(r.content)
-dataframe = pd.json_normalize(data["history"])
-refinedframe = dataframe[["element", "total_points", "goals_scored", "assists", "minutes", "round"]]
+def getPlayerData(playerid):
+    r = requests.get("https://fantasy.premierleague.com/api/element-summary/"+playerid+"/")
+    data = json.loads(r.content)
+    dataframe = pd.json_normalize(data["history"])
+    playerhistory = dataframe[["element", "total_points", "goals_scored", "assists", "minutes", "saves", "clean_sheets", "ict_index", "influence", "creativity", "threat", "round"]]
 
-r = requests.get("https://fantasy.premierleague.com/api/bootstrap-static/")
-data = json.loads(r.content)
-playersframe = pd.DataFrame(data["elements"])
-teamsframe = pd.DataFrame(data["teams"])
-playersubframe = playersframe[["first_name", "second_name", "code", "team", "id", "total_points", "goals_scored", "assists", "minutes", "points_per_game", "saves", "clean_sheets"]]
-teamsubframe = teamsframe[["code", "id", "name", "strength_overall_home", "strength_overall_away", "strength_attack_home", "strength_attack_away", "strength_defence_home", "strength_defence_away"]]
+    r = requests.get("https://fantasy.premierleague.com/api/bootstrap-static/")
+    data = json.loads(r.content)
+    playersframe = pd.DataFrame(data["elements"])
+    playersubframe = playersframe[["first_name", "second_name", "code", "team", "id", "total_points", "goals_scored", "assists", "minutes", "points_per_game", "saves", "clean_sheets", "ict_index", "influence", "creativity", "threat"]]
+    playersubframe = playersubframe.sort_values("id")
+    playerinfo = playersubframe.iloc[int(playerid)-1]
 
-def getUsersTeam(user):
-    session = requests.session()
-    url = "https://users.premierleague.com/accounts/login/"
+    return playerinfo, playerhistory
 
-    headers = {
-        'authority': 'users.premierleague.com' ,
-        'cache-control': 'max-age=0' ,
-        'upgrade-insecure-requests': '1' ,
-        'origin': 'https://fantasy.premierleague.com' ,
-        'content-type': 'application/x-www-form-urlencoded' ,
-        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36' ,
-        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9' ,
-        'sec-fetch-site': 'same-site' ,
-        'sec-fetch-mode': 'navigate' ,
-        'sec-fetch-user': '?1' ,
-        'sec-fetch-dest': 'document' ,
-        'referer': 'https://fantasy.premierleague.com/my-team' ,
-        'accept-language': 'en-US,en;q=0.9,he;q=0.8' ,
-        }
+def getTeamData(playerteam):
+    r = requests.get("https://fantasy.premierleague.com/api/fixtures")
+    data = json.loads(r.content)
+    dataframe = pd.DataFrame(data)
+    dataframe = dataframe[dataframe["finished"]==True]
+    fixtures = dataframe[["team_h", "team_a", "event"]]
+    homes = fixtures[dataframe["team_h"]==playerteam]
+    aways = fixtures[dataframe["team_a"]==playerteam]
 
-    payload = {
-     "password": "Typhoon1998_",
-     "login": "evanroscorla@gmail.com",
-     "redirect_uri": "https://fantasy.premierleague.com/a/login",
-     "app": "plfpl-web"
-    }
-    session.post(url, data=payload, headers=headers)
-    response = session.get("https://fantasy.premierleague.com/api/my-team/8056230/")
-    response = json.loads(response.content)
-    userteam = response["picks"]
-    userteam = pd.DataFrame(userteam)
-    refinedteam = userteam[["element", "position", "is_captain", "is_vice_captain"]]
-    teamdict = refinedteam.to_dict()
-    return teamdict
+    r = requests.get("https://fantasy.premierleague.com/api/bootstrap-static/")
+    data = json.loads(r.content)
+    dataframe = pd.DataFrame(data["teams"])
+    teams = dataframe[["code", "id", "name", "strength_overall_home", "strength_overall_away", "strength_attack_home", "strength_attack_away", "strength_defence_home", "strength_defence_away"]]
+    
+    return homes, aways, teams
 
-def points(dataframe):
-    meanpoints = dataframe["total_points"].mean()
-    currentpoints = dataframe.iloc[dataframe.shape[0]-1, 1]
-    if currentpoints > meanpoints:
-        return "+", meanpoints
-    elif currentpoints == meanpoints:
-        return "=", meanpoints
-    else:
-        return "-", meanpoints
+def compareTeams(teams, homeid, awayid):
+    hometeam = teams.iloc[homeid-1,:]
+    awayteam = teams.iloc[awayid-1,:]
+    attackdif = hometeam["strength_attack_home"] - awayteam["strength_defence_away"]
+    defensedif = hometeam["strength_defence_home"] - awayteam["strength_attack_away"]
+    return attackdif, defensedif
 
-def trend(dataframe):
-    trend = []
-    for i in range(dataframe.shape[0]):
-        currentval = dataframe.iloc[i, 1]
-        try:
-            prevval = dataframe.iloc[i-1, 1]
-        except IndexError:
-            prevval = 0
-        difference = currentval-prevval
-        trend.append(difference)
-    return trend, currentval
+#def calculateRatio(stat, stattype, playerhistory, teams, homes, aways, playerteam, location):
+#    ratios = []
+#    if location == "home":
+#        for i in range(len(homes.index)):
+#            opp = homes.iloc[i, 1]
+#            attackdif, defensedif = compareTeams(teams, playerteam, opp)
+#            gameweek = homes.iloc[i, 2]
+#            playerstats = playerhistory.loc[playerhistory["round"]==gameweek]
+#            statval = playerstats[stat].min()
+#            if stattype == "attack":
+#                ratios.append(statval/attackdif)
+#            else:
+#                ratios.append(statval/defensedif)
+#    else:
+#        for i in range(len(aways.index)):
+#            opp = homes.iloc[i, 0]
+#            attackdif, defensedif, overalldif = compareTeams(teams, opp, playerteam)
+#            #reverses equations
+#            attackdif = attackdif*(-1)
+#            defensedif = defensedif*(-1)
+#            overalldif = overalldif*(-1)
+#            if stattype == "attack":
+#                ratios.append(statval/attackdif)
+#            else:
+#                ratios.append(statval/defensedif)
+#    meanratio = sum(ratios)/(len(ratios)+1)
+#    return meanratio
 
-def playTime(dataframe):
-    averagetime = dataframe["minutes"].mean()
-    played = 0
-    notplayed = 0
-    for i in range(dataframe.shape[0]):
-        if dataframe.iloc[i, 4] == 0:
-            notplayed+=1
-        else:
-            played+=1
-    return averagetime, played, notplayed
+#def getCorrelation()
 
-def getPositionDataFrame(dataframe, type):
-    positionframe = dataframe[dataframe["element_type"]==type]
-    if type == 1:
-        positionframe = dataframe[["element_type", "id", "first_name", "second_name", "points_per_game", "total_points", "minutes", "saves", "clean_sheets", "penalties_saved"]]
-    elif type == 2:
-        positionframe = dataframe[["element_type", "id", "first_name", "second_name", "points_per_game", "total_points", "minutes", "clean_sheets", "goals_scored", "assists"]]
-    else:
-        positionframe = dataframe[["element_type", "id", "first_name", "second_name", "points_per_game", "total_points", "minutes", "goals_scored", "assists"]]
-    return positionframe
-
-def compareRatings(dataframe, player1id, player2id):
-    player1 = dataframe[dataframe["id_player"]==player1id]
-    player2 = dataframe[dataframe["id_player"]==player2id]
-    attack = player1["strength_attack_home"]-player2["strength_defense_away"]
-    defense = player1["strength_defense_home"]-player2["strength_attack_away"]
-    overall = player1["strength_overall_home"]-player2["strength_overall_away"]
-    return attack, defense, overall
-
-def getOverallForm(refinedframe, mergedframe):
-    averagecomp, averagepoints = points(refinedframe)
-    playertrend, currentpoints = trend(refinedframe)
-    averagetime, played, notplayed = playTime(refinedframe)
-    averagepointslist = mergedframe["points_per_game"].tolist()
-    total = 0
-    for i in range(len(averagepointslist)):
-        total+=float(averagepointslist[i])
-    overallaveragepoints = total/len(averagepointslist)
-    averagetotalpoints = mergedframe["total_points"].mean()
-    totalplayerpoints = refinedframe.iloc[0, 1]
-    comparisonlist = []
-    if averagepoints > overallaveragepoints:
-        comparisonlist.append("+")
-    elif averagepoints == overallaveragepoints:
-        comparisonlist.append("=")
-    else:
-        comparisonlist.append("-")
-    if totalplayerpoints > averagetotalpoints:
-        comparisonlist.append("+")
-    elif totalplayerpoints == averagetotalpoints:
-        comparisonlist.append("=")
-    else:
-        comparisonlist.append("-")
-    ups = playertrend.count("+")
-    downs = playertrend.count("-")
-    averagechange = ups + (downs*(-1))
-    if averagechange > 0:
-        averagechange = "+"
-    elif averagechange == 0:
-        averagechange = "="
-    else:
-        averagechange = "-"
-    rating = 50.00 + (16.66*averagechange.count("+") + (-16.66)*averagechange.count("-"))
-    rating = rating * (averagetime/90)
-    rating = rating * (played/(played+notplayed))
-    predictedpoints = currentpoints * ((rating+50)/100)
-    return str(int(rating))+"%", float(f'{predictedpoints:.2f}')
-
-userteam = getUsersTeam("user")
-userelements = userteam["element"]
-userelementslist = []
-for i in range(11):
-    userelementslist.append(userelements[i])
-playersubframe['picked'] = np.where(playersubframe['id'].isin(userelementslist), True, False)
-mergedframe = pd.merge(playersubframe, teamsubframe, left_on='team', right_on='id', suffixes=['_player', '_team'])
-
-print(getOverallForm(refinedframe, mergedframe))
+playerinfo, playerhistory = getPlayerData("318")
+homes, aways, teams = getTeamData(13)
+fixtures = pd.concat([homes, aways])
+hometeam = 13
+fixtures = fixtures.sort_values("event")
+attack = []
+defense = []
+for i in range(len(fixtures.index)):
+    homeid = fixtures.iloc[i, 0]
+    awayid = fixtures.iloc[i, 1]
+    attackdif, defensedif = compareTeams(teams, homeid, awayid)
+    if awayid == 13:
+        attackdif = attackdif*(-1)
+        defensedif = defensedif*(-1)
+    attack.append(attackdif)
+    defense.append(defensedif)
+attack = pd.Series(attack)
+defense = pd.Series(defense)
+playerhistory = pd.concat([playerhistory, attack, defense], axis=1)
+playerhistory = playerhistory.rename(columns={0: "attack_dif", 1: "defense_dif"})
+corr = playerhistory.corr()
+corr = corr.drop(["element", "saves", "attack_dif", "defense_dif", "round", "total_points"], axis=0)
+corr = corr.drop(["element", "total_points", "goals_scored", "assists", "minutes", "clean_sheets", "round", "saves"], axis=1)
+print(corr)
