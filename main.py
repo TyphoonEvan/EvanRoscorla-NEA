@@ -277,24 +277,6 @@ class MainWidget(QWidget):
                 if self.tempframe.iloc[x,18] > remainingmoney:
                     self.tempframe.drop(self.tempframe.index[x])
 
-    def getGameWeek(self):
-        self.today = date.today()
-        self.d1 = self.today.strftime("%d/%m/%Y")
-        self.day = self.d1[:2]
-        self.month = self.d1[3:5]
-        self.events = self.dataframe["events"]
-        self.eventslist = self.events.to_list()
-        self.currentweek = 0
-        for i in range(len(self.eventslist)):
-            self.date = self.eventslist[i]["deadline_time"]
-            self.date = self.date[6:10]
-            self.gameweekday = self.date[3:5]
-            self.gameweekmonth = self.date[:2]
-            if self.month == self.gameweekmonth:
-                if (self.day <= self.gameweekday) and (self.day >= (self.gameweekday-7)):
-                    self.currentweek = i
-                    break
-
     def setPlayerTeam(self):
         self.dataframe = self.dataframe.sort_values("second_name")
         idslist = self.teamdict["element"]
