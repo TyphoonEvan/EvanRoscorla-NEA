@@ -12,6 +12,7 @@ from download import downloader
 import pandas as pd
 import requests
 from datetime import date
+from pointsprediction import *
 
 class App(QMainWindow):
     def __init__(self, teamdict):
@@ -111,13 +112,8 @@ class MainWidget(QWidget):
         self.playerStats.layout = QVBoxLayout(self.playerStats)
         self.teamStats.layout = QVBoxLayout(self.teamStats)
 
-        file = open("data\\bootstrap-static.json", "rb")
-        data = file.read()
-        file.close()
-        datalist = json.loads(data)
-        elements = datalist["elements"]
+        self.dataframe = getPlayerDataframe()
 
-        self.dataframe = pd.DataFrame.from_dict(elements)
         self.tempframe = self.dataframe
         self.firstnames = self.dataframe["first_name"].to_list()
         self.secondnames = self.dataframe["second_name"].to_list()
@@ -190,6 +186,11 @@ class MainWidget(QWidget):
             dataframe = self.tempframe.sort_values("points_per_game")
         self.dataframe = dataframe
         self.populateDropDowns()
+
+    def getCurrentGameweek(gameweeks):
+        for i in range(len(gameweeks.index)):
+            if gameweeks.iloc[i, 4] == "true":
+                return i+1
 
     def populateDropDowns(self):
         self.goalkeepers = self.createPlayerLists(1, False)#creates the list of players

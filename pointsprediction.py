@@ -120,8 +120,8 @@ def getCorrelation(playerid, playerteam):
     corr = corr.drop(["element", "saves", "attack_dif", "defense_dif", "round", "total_points"], axis=0)
     corr = corr.drop(["element", "total_points", "goals_scored", "assists", "minutes", "clean_sheets", "round", "saves"], axis=1)
     return corr, playerhistory
-    
-def getGameWeek(gameweeks):
+
+def getCurrentGameweek(gameweeks):
     for i in range(len(gameweeks.index)):
         if gameweeks.iloc[i, 4] == "true":
             return i+1
@@ -136,40 +136,42 @@ playersubframe = playersubframe.sort_values("id")
 r = requests.get("https://fantasy.premierleague.com/api/fixtures")
 data = json.loads(r.content)
 fixtures = pd.DataFrame(data)
-fixtures = fixtures[fixtures["finished"==False]]
+fixtures = fixtures[fixtures["finished"]==False]
 hometeams = fixtures["team_h"].to_list()
 awayteams = fixtures["team_a"].to_list()
-currentgameweek = getGameWeek(gameweeks)
+currentgameweek = getCurrentGameweek(gameweeks)
 
-predictedpointslist = []
-for i in range(len(playersubframe.index)):
-    currentplayer = playersubframe.iloc[i, :]
-    playerinfo, playerhistory = getPlayerData(str(currentplayer["id"]))
-    homes, aways, teams = getTeamData(currentplayer["team"])
-    prevfixtures = pd.concat([homes, aways])
-    prevfixtures = prevfixtures.sort_values("event")
-    difs = []
-    for j in range(len(prevfixtures.index)):
-        homeid = prevfixtures.iloc[j, 0]
-        awayid = prevfixtures.iloc[j, 1]
-        attackdif, defensedif, overalldif = compareTeams(teams, homeid, awayid)
-        if awayid == currentplayer["team"]:
-            overalldif = overalldif*(-1)
-        difs.append(attackdif)
-    difs = pd.Series(difs)
-    playerhistory = pd.concat([playerhistory, difs], axis=1)
-    playerhistory = playerhistory.rename(columns={0: "overall_dif"}).dropna()
-    playerhistory = playerhistory[["overall_dif", "total_points"]]
-    intercept, coef = getPrediction(playerhistory)
-    if currentplayer["team"] in hometeams:
-        pos = hometeams.index(currentplayer["team"])
-        opp = awayteams[pos]
-        attackdif, defensedif, overalldif = compareTeams(teams, currentplayer["team"], opp)
-    elif currentplayer["team"] in awayteams:
-        pos = awayteams.index(currentplayer["team"])
-        opp = hometeams[pos]
-        attackdif, defensedif, overalldif = compareTeams(teams, opp, currentplayer["team"])
-    predictedpoints = (overalldif*coef) + intercept
-    predictedpointslist.append(predictedpoints)
-predictedpoints = pd.Series(predictedpointslist)
-dataframe = pd.concat([playersubframe, predictedpoints])
+def getPlayerDataframe():
+    predictedpointslist = []
+    for i in range(len(playersubframe.index)):
+        currentplayer = playersubframe.iloc[i, :]
+        playerinfo, playerhistory = getPlayerData(str(currentplayer["id"]))
+        homes, aways, teams = getTeamData(currentplayer["team"])
+        prevfixtures = pd.concat([homes, aways])
+        prevfixtures = prevfixtures.sort_values("event")
+        difs = []
+        for j in range(len(prevfixtures.index)):
+            homeid = prevfixtures.iloc[j, 0]
+            awayid = prevfixtures.iloc[j, 1]
+            attackdif, defensedif, overalldif = compareTeams(teams, homeid, awayid)
+            if awayid == currentplayer["team"]:
+                overalldif = overalldif*(-1)
+            difs.append(attackdif)
+        difs = pd.Series(difs)
+        playerhistory = pd.concat([playerhistory, difs], axis=1)
+        playerhistory = playerhistory.rename(columns={0: "overall_dif"}).dropna()
+        playerhistory = playerhistory[["overall_dif", "total_points"]]
+        intercept, coef = getPrediction(playerhistory)
+        if currentplayer["team"] in hometeams:
+            pos = hometeams.index(currentplayer["team"])
+            opp = awayteams[pos]
+            attackdif, defensedif, overalldif = compareTeams(teams, currentplayer["team"], opp)
+        elif currentplayer["team"] in awayteams:
+            pos = awayteams.index(currentplayer["team"])
+            opp = hometeams[pos]
+            attackdif, defensedif, overalldif = compareTeams(teams, opp, currentplayer["team"])
+        predictedpoints = (overalldif*coef) + intercept
+        predictedpointslist.append(float(f'{predictedpoints:.2f}'))
+    predictedpoints = pd.Series(predictedpointslist)
+    dataframe = pd.concat([playersubframe, predictedpoints], axis=1)
+    return dataframe
