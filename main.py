@@ -3,7 +3,7 @@ import sys, os, configparser
 import json
 from turtle import forward
 from PyQt5 import QtWidgets, QtGui, QtCore
-from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QWidget, QTabWidget, QVBoxLayout, QMenu, QMenuBar, QFileDialog, QDialogButtonBox, QDialog, QGridLayout, QGroupBox, QComboBox, QTableView, QLabel
+from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QWidget, QTabWidget, QVBoxLayout, QMenu, QMenuBar, QFileDialog, QDialogButtonBox, QDialog, QGridLayout, QGroupBox, QComboBox, QTableView, QLabel, QInputDialog
 from PyQt5.QtGui import QIcon, QFont
 from PyQt5.QtCore import pyqtSlot, Qt, QAbstractTableModel
 from pyqtgraph import PlotWidget, plot
@@ -12,7 +12,9 @@ from download import downloader
 import pandas as pd
 import requests
 from datetime import date
-from pointsprediction import *
+from algorithms.pointsprediction import *
+from cryptography.fernet import Fernet
+import ast
 
 class App(QMainWindow):
     def __init__(self, teamdict):
@@ -43,9 +45,15 @@ class App(QMainWindow):
 
     def onLoad(self):
         file , check = QFileDialog.getOpenFileName(None, "QFileDialog.getOpenFileName()",
-                                               "data", "Data Files (cringe-*.json);;")
+                                               "config", "Data Files (*.cnfg);;")
         if check:
-            print(file)
+            file = open(file, "rb")
+            data = file.read()
+            data = f.decrypt(data)
+            data = ast.literal_eval(data.decode("utf-8"))
+            passwordentered, done = QInputDialog.getText(self, 'Input Dialog', 'Enter your password:')
+            if passwordentered == data["password"]:
+                return data
     def onExit(self):
         dialog = YesOrNoDialog()
         if dialog.exec():
@@ -329,21 +337,16 @@ class MainWidget(QWidget):
         self.sortSelector.update()
         
 def onStart():
-    file = open("users_config.json", "r")
-    userdata = file.read()
-    userdata = json.loads(userdata)
-    file.close()
-    response = requests.get("https://fantasy.premierleague.com/api/bootstrap-static/", allow_redirects=True)
-    f = open("data\\bootstrap-static.json", "wb")
-    f.write(response.content)
-    f.close()
-    #downloader.DataReader.getUserData(userdata[2])
     teamdict = downloader.getUsersTeam(2)
     return teamdict
 
 if __name__ == '__main__':
     #downloader.downloadToDataFrame("https://fantasy.premierleague.com/api/bootstrap-static/")
     teamdict = onStart()
+    file = open("key.key", "rb")
+    key = file.read()
+    file.close()
+    f = Fernet(key)
     app = QApplication(sys.argv)
     ex = App(teamdict) 
     sys.exit(app.exec_())

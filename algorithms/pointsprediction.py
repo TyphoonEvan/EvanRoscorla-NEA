@@ -43,7 +43,8 @@ def compareTeams(teams, homeid, awayid):
     awayteam = teams.iloc[awayid-1,:]
     attackdif = hometeam["strength_attack_home"] - awayteam["strength_defence_away"]
     defensedif = hometeam["strength_defence_home"] - awayteam["strength_attack_away"]
-    return attackdif, defensedif
+    overalldif = hometeam["strength_overall_home"] - awayteam["strength_overall_away"]
+    return attackdif, defensedif, overalldif
 
 def calculateRatio(stat, stattype, playerhistory, teams, homes, aways, playerteam, location):
     ratios = []
@@ -78,25 +79,34 @@ def getLinearRegression(playerhistory, currentvar):
     defensetype = ["saves", "clean_sheets"]
     if currentvar in attacktype:
         df = playerhistory[["attack_dif", currentvar]]
-        matrix = np.array(df.values,"int")
-        x = matrix[:,0].reshape((-1,1))
-        y = matrix[:,1]
-        model = LinearRegression()
-        model.fit(x,y)
-        return model.intercept_, model.coef_
+    elif currentvar in defensetype:
+        df = playerhistory[["defense_dif", currentvar]]
+    matrix = np.array(df.values,"int")
+    x = matrix[:,0].reshape((-1,1))
+    y = matrix[:,1]
+    model = LinearRegression()
+    model.fit(x,y)
+    return model.intercept_, model.coef_
+
+def getPrediction(df):
+    matrix = np.array(df.values,"int")
+    x = matrix[:,0].reshape((-1,1))
+    y = matrix[:,1]
+    model = LinearRegression()
+    model.fit(x,y)
+    return model.intercept_, model.coef_
 
 def getCorrelation(playerid, playerteam):
     playerinfo, playerhistory = getPlayerData(str(playerid))
     homes, aways, teams = getTeamData(playerteam)
     fixtures = pd.concat([homes, aways])
     fixtures = fixtures.sort_values("event")
-    print(fixtures)
     attack = []
     defense = []
     for i in range(len(fixtures.index)):
         homeid = fixtures.iloc[i, 0]
         awayid = fixtures.iloc[i, 1]
-        attackdif, defensedif = compareTeams(teams, homeid, awayid)
+        attackdif, defensedif, overalldif = compareTeams(teams, homeid, awayid)
         if awayid == playerteam:
             attackdif = attackdif*(-1)
             defensedif = defensedif*(-1)
@@ -110,3 +120,58 @@ def getCorrelation(playerid, playerteam):
     corr = corr.drop(["element", "saves", "attack_dif", "defense_dif", "round", "total_points"], axis=0)
     corr = corr.drop(["element", "total_points", "goals_scored", "assists", "minutes", "clean_sheets", "round", "saves"], axis=1)
     return corr, playerhistory
+
+def getCurrentGameweek(gameweeks):
+    for i in range(len(gameweeks.index)):
+        if gameweeks.iloc[i, 4] == "true":
+            return i+1
+
+r = requests.get("https://fantasy.premierleague.com/api/bootstrap-static/")
+data = json.loads(r.content)
+playersframe = pd.DataFrame(data["elements"])
+gameweeks = pd.DataFrame(data["events"])
+playersubframe = playersframe[["first_name", "second_name", "code", "team", "id", "total_points", "goals_scored", "assists", "minutes", "points_per_game", "saves", "clean_sheets", "ict_index", "influence", "creativity", "threat"]]
+playersubframe = playersubframe.sort_values("id")
+
+r = requests.get("https://fantasy.premierleague.com/api/fixtures")
+data = json.loads(r.content)
+fixtures = pd.DataFrame(data)
+fixtures = fixtures[fixtures["finished"]==False]
+hometeams = fixtures["team_h"].to_list()
+awayteams = fixtures["team_a"].to_list()
+currentgameweek = getCurrentGameweek(gameweeks)
+
+def getPlayerDataframe():
+    predictedpointslist = []
+    for i in range(len(playersubframe.index)):
+        currentplayer = playersubframe.iloc[i, :]
+        playerinfo, playerhistory = getPlayerData(str(currentplayer["id"]))
+        homes, aways, teams = getTeamData(currentplayer["team"])
+        prevfixtures = pd.concat([homes, aways])
+        prevfixtures = prevfixtures.sort_values("event")
+        difs = []
+        for j in range(len(prevfixtures.index)):
+            homeid = prevfixtures.iloc[j, 0]
+            awayid = prevfixtures.iloc[j, 1]
+            attackdif, defensedif, overalldif = compareTeams(teams, homeid, awayid)
+            if awayid == currentplayer["team"]:
+                overalldif = overalldif*(-1)
+            difs.append(attackdif)
+        difs = pd.Series(difs)
+        playerhistory = pd.concat([playerhistory, difs], axis=1)
+        playerhistory = playerhistory.rename(columns={0: "overall_dif"}).dropna()
+        playerhistory = playerhistory[["overall_dif", "total_points"]]
+        intercept, coef = getPrediction(playerhistory)
+        if currentplayer["team"] in hometeams:
+            pos = hometeams.index(currentplayer["team"])
+            opp = awayteams[pos]
+            attackdif, defensedif, overalldif = compareTeams(teams, currentplayer["team"], opp)
+        elif currentplayer["team"] in awayteams:
+            pos = awayteams.index(currentplayer["team"])
+            opp = hometeams[pos]
+            attackdif, defensedif, overalldif = compareTeams(teams, opp, currentplayer["team"])
+        predictedpoints = (overalldif*coef) + intercept
+        predictedpointslist.append(predictedpoints)
+    predictedpoints = pd.Series(predictedpointslist)
+    dataframe = pd.concat([playersubframe, predictedpoints], axis=1)
+    return dataframe
