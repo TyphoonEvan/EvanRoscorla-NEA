@@ -141,7 +141,7 @@ hometeams = fixtures["team_h"].to_list()
 awayteams = fixtures["team_a"].to_list()
 currentgameweek = getCurrentGameweek(gameweeks)
 
-def getPlayerDataframe():
+def getPlayerDataframe(stat):
     predictedpointslist = []
     for i in range(len(playersubframe.index)):
         currentplayer = playersubframe.iloc[i, :]
@@ -160,7 +160,7 @@ def getPlayerDataframe():
         difs = pd.Series(difs)
         playerhistory = pd.concat([playerhistory, difs], axis=1)
         playerhistory = playerhistory.rename(columns={0: "overall_dif"}).dropna()
-        playerhistory = playerhistory[["overall_dif", "total_points"]]
+        playerhistory = playerhistory[["overall_dif", stat]]
         intercept, coef = getPrediction(playerhistory)
         if currentplayer["team"] in hometeams:
             pos = hometeams.index(currentplayer["team"])
