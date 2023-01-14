@@ -24,6 +24,10 @@ def getPlayerData(playerid):
 
     return playerinfo, playerhistory
 
+def calculatePlayTime(playerinfo, totalgames):
+    totaltime = playerinfo["minutes"]
+    return totaltime/totalgames
+
 def getTeamData(playerteam):
     r = requests.get("https://fantasy.premierleague.com/api/fixtures")
     data = json.loads(r.content)
@@ -50,7 +54,7 @@ def getPrediction(df):
 
 def getCurrentGameweek(gameweeks):
     for i in range(len(gameweeks.index)):
-        if gameweeks.iloc[i, 4] == "true":
+        if gameweeks.iloc[i, 4] == False:
             return i+1
 
 def compareTeams(teams, homeid, awayid):
@@ -61,12 +65,36 @@ def compareTeams(teams, homeid, awayid):
     overalldif = hometeam["strength_overall_home"] - awayteam["strength_overall_away"]
     return attackdif, defensedif, overalldif
 
-def getPlayerDataframe(stat):
+def predictPerformance(id):
+    playerinfo, playerhistory = getPlayerData(str(id))
+    stats = ["goals_scored", "assists", "saves", "clean_sheets", "points_per_game"]
+    intercepts = []
+    coefs = []
+    for i in range(len(stats)):
+        currentstat = stats[i]
+        vallist = []
+        prevval = 0
+        df = playerhistory[[currentstat, "round"]]
+        for j in range(len(df.index)):
+            currentval = df.iloc[j ,0]
+            currentval += prevval
+            vallist.append(currentval)
+            prevval = currentval
+        df = pd.concat([df, pd.Series(vallist)], axis=1)
+        df = df.drop(currentstat, axis=1)
+        intercept, coef = getPrediction(df)
+        coef = coef[0]
+        intercepts.append(intercept)
+        coefs.append(coef)
+    predictiontable = pd.DataFrame({"intercept": intercepts, "coef": coefs}, index = stats)
+    return predictiontable
+
+def getPlayerDataframe():
     r = requests.get("https://fantasy.premierleague.com/api/bootstrap-static/")
     data = json.loads(r.content)
     playersframe = pd.DataFrame(data["elements"])
     gameweeks = pd.DataFrame(data["events"])
-    playersubframe = playersframe[["first_name", "second_name", "code", "team", "id", "total_points", "goals_scored", "assists", "minutes", "points_per_game", "saves", "clean_sheets", "ict_index", "influence", "creativity", "threat", "now_cost", "element_type"]]
+    playersubframe = playersframe[["id", "first_name", "second_name", "code", "team", "total_points", "goals_scored", "assists", "minutes", "points_per_game", "saves", "clean_sheets", "ict_index", "influence", "creativity", "threat", "now_cost", "element_type", "chance_of_playing_this_round"]]
     playersubframe = playersubframe.sort_values("id")
 
     r = requests.get("https://fantasy.premierleague.com/api/fixtures")
@@ -77,66 +105,48 @@ def getPlayerDataframe(stat):
     awayteams = fixtures["team_a"].to_list()
     currentgameweek = getCurrentGameweek(gameweeks)
 
-    attacks = ["goals_scored", "assists"]
-    defenses = ["saves", "clean_sheets"]
-    overalls = ["points_per_game", "ict_index", "influence", "creativity", "threat"]
-
-    predictedstatlist = []
+    averages = []
+    predictedstatframe = pd.DataFrame()
+    idslist = []
     for i in range(len(playersubframe.index)):
         currentplayer = playersubframe.iloc[i, :]
+        idslist.append(currentplayer["id"])
         playerinfo, playerhistory = getPlayerData(str(currentplayer["id"]))
-        homes, aways, teams = getTeamData(currentplayer["team"])
-        prevfixtures = pd.concat([homes, aways])
-        prevfixtures = prevfixtures.sort_values("event")
-        difs = []
-        for j in range(len(prevfixtures.index)):
-            homeid = prevfixtures.iloc[j, 0]
-            awayid = prevfixtures.iloc[j, 1]
-            attackdif, defensedif, overalldif = compareTeams(teams, homeid, awayid)
-            if awayid == currentplayer["team"]:
-                overalldif = overalldif*(-1)
-                attackdif = attackdif*(-1)
-                defensedif = defensedif*(-1)
-            if stat in attacks:
-                difs.append(attackdif)
-                diftype = "attack_dif"
-            elif stat in defenses:
-                difs.append(defensedif)
-                diftype = "defense_dif"
-            elif stat in overalls:
-                difs.append(overalldif)
-                diftype = "overall_dif"
-        difs = pd.Series(difs)
-        playerhistory = pd.concat([playerhistory, difs], axis=1)
-        playerhistory = playerhistory.rename(columns={0: diftype}).dropna()
-        playerhistory = playerhistory[[diftype, stat]]
-        intercept, coef = getPrediction(playerhistory)
-        if currentplayer["team"] in hometeams:
-            pos = hometeams.index(currentplayer["team"])
-            opp = awayteams[pos]
-            attackdif, defensedif, overalldif = compareTeams(teams, currentplayer["team"], opp)
-        elif currentplayer["team"] in awayteams:
-            pos = awayteams.index(currentplayer["team"])
-            opp = hometeams[pos]
-            attackdif, defensedif, overalldif = compareTeams(teams, opp, currentplayer["team"])
-        if stat in attacks:
-            predictedstat = (attackdif*coef) + intercept
-        elif stat in defenses:
-            predictedstat = (defensedif*coef) + intercept
-        elif stat in overalls:
-            predictedstat = (overalldif*coef) + intercept
-        predictedstatlist.append(round(float(predictedstat)))
-    predictedstat = pd.Series(predictedstatlist)
-    dataframe = pd.concat([playersubframe, predictedstat], axis=1)
-    dataframe = dataframe[["id", "first_name", "second_name", stat, "now_cost", "element_type"]]
+        averagetime = calculatePlayTime(playerinfo, currentgameweek)
+        averages.append(averagetime)
+        predictiontable = predictPerformance(currentplayer["id"])
+        predictionlist = []
+        for j in range(len(predictiontable.index)):
+            predictionlist.append((currentgameweek * predictiontable.iloc[j, 1]) + predictiontable.iloc[j, 0])
+        predictionlist = pd.Series(predictionlist)
+        predictedstatframe = pd.concat([predictedstatframe, predictionlist], axis=1)
+        predictedstatframe = predictedstatframe.rename({0: i+1}, axis=1)
+    predictedstatframe = predictedstatframe.transpose()
+    idsseries = pd.Series(idslist)
+    predictedstatframe = pd.concat([predictedstatframe, idsseries], axis=1)
+    averages = {idslist[i]: averages[i] for i in range(len(idslist))}
+    averages = pd.DataFrame(list(averages.items()), columns=["id", "average_play_time"])
+    print(averages)
+    predictedstatframe = predictedstatframe.rename({0: "predicted_goals_scored", 1: "predicted_assists", 2: "predicted_saves", 3: "predicted_clean_sheets", 4: "predicted_points_per_game", 5: "id"}, axis=1)
+    dataframe = playersubframe.join(predictedstatframe, on="id")
+    dataframe = dataframe.reset_index()
+    dataframe = dataframe.join(averages, rsuffix="_avg")
     return dataframe
 
+dataframe = getPlayerDataframe()
+file = open("other\\data.json", "w")
+file.write(json.dumps(dataframe.to_dict()))
+file.close()
+print(dataframe)
+exit()
 file = open("other\\data.json", "r")
 data = file.read()
 file.close()
 data = json.loads(data)
 dataframe = pd.DataFrame(data)
 columns = list(dataframe.columns)
+dataframe = dataframe.query("chance_of_playing_this_round >= 30")
+dataframe = dataframe.query("average_play_time >= 20")
 goalkeepers = dataframe.query("element_type == 1")
 topgoalkeepers = goalkeepers.query("now_cost <= 40 and now_cost > 30")
 topgoalkeepers = topgoalkeepers.sort_values(columns[3], ascending=False)
@@ -144,15 +154,15 @@ topgoalkeepers = topgoalkeepers.head(1)
 defenders = dataframe.query("element_type == 2")
 topdefenders = defenders.query("now_cost <= 40 and now_cost > 30")
 topdefenders = topdefenders.sort_values(columns[3], ascending=False)
-topdefenders = topdefenders.head(3)
+topdefenders = topdefenders.head(2)
 midfielders = dataframe.query("element_type == 3")
 topmidfielders = midfielders.query("now_cost <= 40 and now_cost > 30")
 topmidfielders = topmidfielders.sort_values(columns[3], ascending=False)
-topmidfielders = topmidfielders.head(2)
+topmidfielders = topmidfielders.head(1)
 attackers = dataframe.query("element_type == 4")
 topattackers = attackers.query("now_cost <= 40 and now_cost > 30")
 topattackers = topattackers.sort_values(columns[3], ascending=False)
-topattackers = topattackers.head(2)
+topattackers = topattackers.head(1)
 for i in range(9):
    mincost = (i+4)*10
    maxcost = mincost+10
@@ -171,7 +181,7 @@ for i in range(9):
    maxcost = mincost+10
    players = defenders.query("now_cost <= @maxcost and now_cost > @mincost")
    players = players.sort_values(columns[3], ascending=False)
-   players = players.head(1)
+   players = players.head(2)
    topdefenders = pd.concat([topdefenders, players], axis=0)
 empty = []
 for i in range(len(topdefenders.index)):
@@ -210,13 +220,13 @@ def checkTeam(team, topteampoints):
         return -1, 0
     teamcost = 0
     for i in range(11):
-        teamcost += team.iloc[i, 4]
+        teamcost += team.iloc[i, 16]
     if teamcost > 1000:
-        return -1
+        return -1, 0
     else:
         teampoints = 0
         for j in range(11):
-            teampoints += float(team.iloc[j, 3])
+            teampoints += float(team.iloc[j, 5])
         if teampoints > topteampoints:
             return 1, teampoints
         else:
@@ -246,6 +256,7 @@ def loopMidfielders(team, topteampoints, topteam):
 
 def loopAttackers(team, topteampoints, topteam):
     oldteam = team
+    print("done")
     for i in range(len(allattackers)):
         team = oldteam
         currentattackers = allattackers[i]

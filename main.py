@@ -44,6 +44,7 @@ class App(QMainWindow):
         loginmenu.addAction("Login", self.onLogin)
         loginmenu.addAction("Create Account", self.onCreateAccount)
         menuBar.addMenu(filemenu)
+        menuBar.addMenu(loginmenu)
 
     def onLoad(self):
         file , check = QFileDialog.getOpenFileName(None, "QFileDialog.getOpenFileName()",
@@ -89,9 +90,8 @@ class Login(QDialog):
         self.passwordlabel.move(20, 80)
         self.button = QPushButton("Login", self)
         self.button.move(20,200)
-        data = self.button.clicked.connect(self.login)
+        self.button.clicked.connect(self.login)
         self.show()
-        return data
     
     @pyqtSlot()
     def login(self):
@@ -100,11 +100,8 @@ class Login(QDialog):
         data = f.decrypt(data).decode("utf-8")
         data = ast.literal_eval(data)
         file.close()
-        print(data.get("password"))
         if self.passwordline.text() == data.get("password"):
-            return data
-        else:
-            return -1
+            MainWidget.getPlayerTeam(MainWidget, user=self.nameline.text())
 
 class CreateAccount(QDialog):
     def __init__(self):
@@ -202,11 +199,11 @@ class MainWidget(QWidget):
         self.teamStats = QWidget()
         self.tabs.resize(300,200)
 
+        self.teamdict = ""
+
         self.tabs.addTab(self.myTeam,"My Team")
         self.tabs.addTab(self.playerStats,"Player Stats")
         self.tabs.addTab(self.teamStats,"Team Stats")
-
-        teamdict = downloader.AutoDownloader.getUserData("evan")
 
         self.myTeam.layout = QVBoxLayout(self.myTeam)
         self.playerStats.layout = QVBoxLayout(self.playerStats)
@@ -293,9 +290,6 @@ class MainWidget(QWidget):
         layout.addWidget(self.defender4,2,3)
         layout.addWidget(self.defender5,2,4)
         layout.addWidget(self.goalkeeper,3,2)
-
-        self.setPlayerTeam()
-        self.priceUpdate()
         
         self.teamLayout.setLayout(layout)
         self.createPlayerTable()
@@ -378,11 +372,8 @@ class MainWidget(QWidget):
         "second_name", 
         "total_points", 
         "points_per_game", 
-        "yellow_cards", 
-        "red_cards", 
         "goals_scored", 
-        "assists", 
-        "goals_conceded", 
+        "assists",  
         "saves"]]
         self.playerslayout = QTableView()
         playertable = pandasModel(tableframe)
@@ -459,6 +450,15 @@ class MainWidget(QWidget):
         self.forward2.addItems(self.attackers)
         self.priceUpdate()
         self.sortSelector.update()
+
+    def getPlayerTeam(self, user):
+        # self.teamdict = downloader.AutoDownloader.getUserData(user)
+        file = open("data\\Evan-Team.json", "rb")
+        data = file.read()
+        MainWidget.teamdict = json.loads(data)
+        file.close()
+        self.setPlayerTeam()
+        self.priceUpdate()
         
 def onStart():
     file = open("data\\bootstrap-static.json", "rb")
