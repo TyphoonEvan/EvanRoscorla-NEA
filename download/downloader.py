@@ -3,9 +3,11 @@ import json
 import pandas as pd
 from cryptography.fernet import Fernet
 import ast
+from team_optimiser import PerformancePredictor
 
 class AutoDownloader():
     def downloadGenericData(gameweek):
+        '''Downloads the general data'''
         file = open("config\\download_config.json", "r")
         data = file.read()
         config = json.loads(data)
@@ -20,38 +22,53 @@ class AutoDownloader():
             file.write(response.content)
             file.close()
 
-    def getPlayersFrame():
+    def getPlayerDataframe(self):
+        '''Creates the dataframe of all players and stats, returns dataframe'''
         file = open("data\\bootstrap-static.json", "rb")
         data = file.read()
+        file.close()
         data = json.loads(data)
         playersframe = pd.DataFrame(data["elements"])
-        playersubframe = playersframe[["first_name", "second_name", "code", "team", "id", "total_points", "goals_scored", "assists", "minutes", "points_per_game", "saves", "clean_sheets", "ict_index", "influence", "creativity", "threat"]]
-        dataframe = playersubframe.sort_values("id")
-        file = open("data\\goals_scored.json", "r")
-        data = file.read()
-        goals_scored = pd.read_json(data)
-        file.close()
-        file = open("data\\assists.json", "r")
-        data = file.read()
-        assists = pd.read_json(data)
-        file.close()
-        file = open("data\\points.json", "r")
-        data = file.read()
-        points = pd.read_json(data)
-        file.close()
-        file = open("data\\saves.json", "r")
-        data = file.read()
-        saves = pd.read_json(data)
-        file.close()
-        file = open("data\\clean_sheets.json", "r")
-        data = file.read()
-        clean_sheets = pd.read_json(data)
-        file.close()
-        dataframe = pd.concat([dataframe, goals_scored, assists, points, saves, clean_sheets], axis=1)
-        dataframe = dataframe.loc[:,~dataframe.columns.duplicated(keep="first")].copy()
-        return dataframe
+        gameweeks = pd.DataFrame(data["events"])
+        playersubframe = playersframe[["id", "first_name", "second_name", "code", "team", "total_points", "goals_scored", "assists", "minutes", "points_per_game", "saves", "clean_sheets", "ict_index", "influence", "creativity", "threat", "now_cost", "element_type", "chance_of_playing_this_round"]]
+        playersubframe = playersubframe.sort_values("id")
 
-    def getTeamsFrame():
+        currentgameweek = getCurrentGameweek(gameweeks)
+
+        averages = []
+        predictedstatframe = pd.DataFrame()
+        idslist = []
+        for i in range(len(playersubframe.index)):
+            currentplayer = playersubframe.iloc[i, :]
+            currentid = currentplayer["id"]
+            playerdownloader = PlayerDownloader(currentid, currentgameweek)
+            idslist.append(currentid)
+            playerinfo, playerhistory = playerdownloader.getPlayerData()
+            averagetime = playerdownloader.calculatePlayTime()
+            averages.append(averagetime)
+            performancePredictor = PerformancePredictor(playerhistory)
+            predictiontable = performancePredictor.predictPerformance()
+            predictionlist = []
+            for j in range(len(predictiontable.index)):
+                predictionlist.append((currentgameweek * predictiontable.iloc[j, 1]) + predictiontable.iloc[j, 0])
+            predictionlist = pd.Series(predictionlist)
+            predictedstatframe = pd.concat([predictedstatframe, predictionlist], axis=1)
+            predictedstatframe = predictedstatframe.rename({0: i+1}, axis=1)
+        predictedstatframe = predictedstatframe.transpose()
+        idsseries = pd.Series(idslist)
+        predictedstatframe = pd.concat([predictedstatframe, idsseries], axis=1)
+        averages = {idslist[i]: averages[i] for i in range(len(idslist))}
+        averages = pd.DataFrame(list(averages.items()), columns=["id", "average_play_time"])
+        predictedstatframe = predictedstatframe.rename({0: "predicted_goals_scored", 1: "predicted_assists", 2: "predicted_saves", 3: "predicted_clean_sheets", 4: "predicted_points_per_game", 5: "id"}, axis=1)
+        dataframe = playersubframe.join(predictedstatframe, on="id")
+        dataframe = dataframe.reset_index()
+        dataframe = dataframe.join(averages, rsuffix="_avg")
+        file = open("data\\player-data.json", "w")
+        file.write(json.dumps(dataframe.to_dict()))
+        file.close()
+
+    def getTeamsFrame(self):
+        '''Downloads team specific data, returns a dataframe'''
         file = open("data\\bootstrap-static.json", "rb")
         data = file.read()
         data = json.loads(data)
@@ -61,6 +78,7 @@ class AutoDownloader():
         return dataframe
 
     def getUserData(user):
+        '''Downloads user data, returns a dictionary'''
         file = open("key.key", "rb")
         key = file.read()
         file.close()
@@ -110,3 +128,35 @@ class AutoDownloader():
         refinedteam = userteam[["element", "position", "is_captain", "is_vice_captain"]]
         teamdict = refinedteam.to_dict()
         return teamdict
+    
+def getCurrentGameweek(gameweeks):
+    '''Calculates the current gameweek, takes array, returns int'''
+    for i in range(len(gameweeks.index)):
+        if gameweeks.iloc[i, 4] == False:
+            return i+1
+    
+class PlayerDownloader():
+    def __init__(self, playerid, currentgameweek):
+        self.id = playerid
+        self.totalgames = currentgameweek
+
+    def getPlayerData(self):
+        r = requests.get("https://fantasy.premierleague.com/api/element-summary/"+str(self.id)+"/")
+        data = json.loads(r.content)
+        dataframe = pd.json_normalize(data["history"])
+        self.playerhistory = dataframe[["element", "total_points", "goals_scored", "assists", "minutes", "saves", "clean_sheets", "ict_index", "influence", "creativity", "threat", "round"]]
+        self.playerhistory = self.playerhistory.rename({"total_points": "points_per_game"}, axis=1)
+
+        r = requests.get("https://fantasy.premierleague.com/api/bootstrap-static/")
+        data = json.loads(r.content)
+        playersframe = pd.DataFrame(data["elements"])
+        self.playersubframe = playersframe[["first_name", "second_name", "code", "team", "id", "total_points", "goals_scored", "assists", "minutes", "points_per_game", "saves", "clean_sheets", "ict_index", "influence", "creativity", "threat", "element_type"]]
+        self.playersubframe = self.playersubframe.sort_values("id")
+        self.playerinfo = self.playersubframe.iloc[int(self.id)-1]
+        self.playerteam = self.playerinfo["team"]
+
+        return self.playerinfo, self.playerhistory 
+
+    def calculatePlayTime(self):
+        totaltime = self.playerinfo["minutes"]
+        return totaltime/self.totalgames
