@@ -3,7 +3,7 @@ import sys, os, configparser
 import json
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
-from PyQt5.QtCore import pyqtSlot, Qt, QAbstractTableModel
+from PyQt5.QtCore import pyqtSlot, Qt, QAbstractTableModel, QSize
 from download import downloader
 import pandas as pd
 from team_optimiser import *
@@ -11,7 +11,8 @@ from cryptography.fernet import Fernet
 import ast
 import requests
 from summary_page import SummaryPage
-from tablestest import PlayerTable
+from player_table import PlayerTable
+import asyncio
 
 class App(QMainWindow):
     def __init__(self):
@@ -24,16 +25,9 @@ class App(QMainWindow):
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
 
-        menuBar = QMenuBar(self)
-        self.setMenuBar(menuBar)
-        filemenu = QMenu("&File", self)
-        # filemenu.addAction("Load",self.onLoad)
-        filemenu.addAction("Exit",self.onExit)
-        loginmenu = QMenu("&Login", self)
-        # loginmenu.addAction("Login", self.onLogin)
-        # loginmenu.addAction("Create Account", self.onCreateAccount)
-        menuBar.addMenu(filemenu)
-        menuBar.addMenu(loginmenu)
+        splash_pix = QPixmap("splash_screen.png")
+        splash = QSplashScreen(splash_pix, Qt.WindowStaysOnTopHint)
+        splash.show()
 
         self.mainWidget = MainWidget(self)
         self.setCentralWidget(self.mainWidget)
@@ -41,6 +35,17 @@ class App(QMainWindow):
         stylesheet = file.read()
         self.setStyleSheet(stylesheet)
 
+        menuBar = QMenuBar(self)
+        self.setMenuBar(menuBar)
+        filemenu = QMenu("&File", self)
+        filemenu.addAction("Exit",self.onExit)
+        loginmenu = QMenu("&Accounts", self)
+        loginmenu.addAction("Login", self.onLogin)
+        loginmenu.addAction("Create Account", self.onCreateAccount)
+        menuBar.addMenu(filemenu)
+        menuBar.addMenu(loginmenu)
+
+        splash.close()
         self.show()
 
     def onExit(self):
@@ -49,6 +54,12 @@ class App(QMainWindow):
             exit(0)
         else:
             pass
+
+    def onCreateAccount(self):
+        self.accountCreatorDialog = CreateAccount()
+
+    def onLogin(self):
+        self.loginDialog = Login()
 
 class CreateAccount(QDialog):
     def __init__(self):
@@ -109,6 +120,28 @@ class Login(QDialog):
         self.button.clicked.connect(self.login)
         self.show()
 
+    def login(self):
+        username = self.nameline.text()
+        password = self.passwordline.text()
+
+        filename = "config\\" + username + ".cnfg"
+        file = open(filename, "rb")
+        data = file.read()
+        file.close()
+
+        keyFile = open("key.key", "rb")
+        key = keyFile.read()
+        file.close()
+        f = Fernet(key)
+        data = f.decrypt(data)
+        data = data.decode("utf-8")
+        data = ast.literal_eval(data)
+        if data["password"] == password:
+            globalGetUserTeam(username)           
+
+def globalGetUserTeam(username):
+    UserTeamWidget.getUserTeam(UserTeamWidget, username)
+
 class YesOrNoDialog(QDialog):
     def __init__(self):
         super().__init__()
@@ -130,6 +163,8 @@ class MainWidget(QWidget):
         super(QWidget, self).__init__(parent)
         self.layout = QVBoxLayout(self)
 
+        self.reload = False
+
         self.tabs = QTabWidget()
         self.myTeam = QWidget()
         self.playerStats = QWidget()
@@ -142,24 +177,64 @@ class MainWidget(QWidget):
         self.tabs.addTab(self.teamStats,"Team Stats")
         self.tabs.addTab(self.summaryPage,"Summary")
 
+        self.tabs.currentChanged.connect(self.onReload)
+
         self.myTeam.layout = QVBoxLayout(self.myTeam)
         self.playerStats.layout = QVBoxLayout(self.playerStats)
         self.teamStats.layout = QVBoxLayout(self.teamStats)
 
         self.playerStats.layout.addWidget(PlayerTable(self))
+        self.getData()
 
+        self.userTeamWidget = UserTeamWidget(self, self.playersframe)
+
+        self.myTeam.layout.addWidget(self.userTeamWidget)
+
+        self.layout.addWidget(self.tabs)
+        self.setLayout(self.layout)
+
+    def getData(self):
         self.downloader = downloader.AutoDownloader()
-        #self.downloader.getPlayerDataframe()
         file = open("data\\player-data.json", "r")
         data = file.read()
         data = json.loads(data)
         self.playersframe = pd.DataFrame(data)
         self.teamsframe = self.downloader.getTeamsFrame()
 
-        self.myTeam.layout.addWidget(UserTeamWidget(self, self.playersframe))
+    def onReload(self):
+        if self.reload == True:
+            self.getData()
+            self.reload = False
 
-        self.layout.addWidget(self.tabs)
-        self.setLayout(self.layout)
+class IconGenerator:
+
+    icons = {}
+
+    @classmethod
+    def GetIcon(self, teamID):
+        # Create dictionary of icons
+        if not len(self.icons):
+            self.icons[1] = QIcon("premiership_kits\\Arsenal_home.png")
+            self.icons[2] = QIcon("premiership_kits\\Aston_Villa_home.png")
+            self.icons[3] = QIcon("premiership_kits\\Bournemouth_home.png")
+            self.icons[4] = QIcon("premiership_kits\\Brentford_home.png")
+            self.icons[5] = QIcon("premiership_kits\\Brighton_home.png")
+            self.icons[6] = QIcon("premiership_kits\\Chelsea_home.png")
+            self.icons[7] = QIcon("premiership_kits\\Crystal_Palace_home.png")
+            self.icons[8] = QIcon("premiership_kits\\Everton_home.png")
+            self.icons[9] = QIcon("premiership_kits\\Fulham_home.png")
+            self.icons[10] = QIcon("premiership_kits\\Leeds_home.png")
+            self.icons[11] = QIcon("premiership_kits\\Leicester_home.png")
+            self.icons[12] = QIcon("premiership_kits\\Liverpool_home.png")
+            self.icons[13] = QIcon("premiership_kits\\Manchester_City_home.png")
+            self.icons[14] = QIcon("premiership_kits\\Manchester_United_home.png")
+            self.icons[15] = QIcon("premiership_kits\\Newcastle_home.png")
+            self.icons[16] = QIcon("premiership_kits\\Nottingham_Forest_home.png")
+            self.icons[17] = QIcon("premiership_kits\\Southampton_home.png")
+            self.icons[18] = QIcon("premiership_kits\\Tottenham_Hotspur_home.png")
+            self.icons[19] = QIcon("premiership_kits\\West_Ham_home.png")
+            self.icons[20] = QIcon("premiership_kits\\Wolves_home.png")
+        return self.icons[teamID]
 
 class UserTeamWidget(QWidget):
     def __init__(self, parent, playersframe):
@@ -180,39 +255,58 @@ class UserTeamWidget(QWidget):
             currentdict = {"name": self.fullnames[i], "price": self.prices[i]}
             self.namesandprices.append(currentdict)
 
-        file = open("data\\Evan-Team.json", "rb")
-        data = file.read()
-        self.teamdict = json.loads(data)
-        file.close()
-
         self.sortSelector = QComboBox()
         items = ["Alphabetical", "Total Points", "Points Per Game"]
         self.sortSelector.addItems(items)
         self.sortSelector.currentIndexChanged.connect(self.setOrder)
 
         #creates dropdown
-        self.attacker1 = QComboBox()
         self.attacker2 = QComboBox()
-        self.midfielder1 = QComboBox()
-        self.midfielder2 = QComboBox()
+        self.attacker3 = QComboBox()
         self.midfielder3 = QComboBox()
+        self.midfielder4 = QComboBox()
+        self.attacker1 = QComboBox()
         self.defender1 = QComboBox()
         self.defender2 = QComboBox()
         self.defender3 = QComboBox()
-        self.defender4 = QComboBox()
-        self.defender5 = QComboBox()
+        self.midfielder1 = QComboBox()
+        self.midfielder2 = QComboBox()
         self.goalkeeper = QComboBox()
+
+        self.attacker2.setFixedSize(150, 40)
+        self.attacker3.setFixedSize(150, 40)
+        self.midfielder3.setFixedSize(150, 40)
+        self.midfielder4.setFixedSize(150, 40)
+        self.attacker1.setFixedSize(150, 40)
+        self.defender1.setFixedSize(150, 40)
+        self.defender2.setFixedSize(150, 40)
+        self.defender3.setFixedSize(150, 40)
+        self.midfielder1.setFixedSize(150, 40)
+        self.midfielder2.setFixedSize(150, 40)
+        self.goalkeeper.setFixedSize(150, 40)
+
+        self.attacker2.setIconSize(QSize(40, 32))
+        self.attacker3.setIconSize(QSize(40, 32))
+        self.midfielder3.setIconSize(QSize(40, 32))
+        self.midfielder4.setIconSize(QSize(40, 32))
+        self.attacker1.setIconSize(QSize(40, 32))
+        self.defender1.setIconSize(QSize(40, 32))
+        self.defender2.setIconSize(QSize(40, 32))
+        self.defender3.setIconSize(QSize(40, 32))
+        self.midfielder1.setIconSize(QSize(40, 32))
+        self.midfielder2.setIconSize(QSize(40, 32))
+        self.goalkeeper.setIconSize(QSize(40, 32))
         #adds dropdowns to tab
-        self.layout.addWidget(self.attacker1,0,1)
-        self.layout.addWidget(self.attacker2,0,3)
-        self.layout.addWidget(self.midfielder1,1,1)
-        self.layout.addWidget(self.midfielder2,1,2)
-        self.layout.addWidget(self.midfielder3,1,3)
-        self.layout.addWidget(self.defender1,2,0)
-        self.layout.addWidget(self.defender2,2,1)
-        self.layout.addWidget(self.defender3,2,2)
-        self.layout.addWidget(self.defender4,2,3)
-        self.layout.addWidget(self.defender5,2,4)
+        self.layout.addWidget(self.attacker2,0,0)
+        self.layout.addWidget(self.attacker3,0,4)
+        self.layout.addWidget(self.midfielder3,1,0)
+        self.layout.addWidget(self.midfielder4,1,1)
+        self.layout.addWidget(self.attacker1,0,2)
+        self.layout.addWidget(self.defender1,2,1)
+        self.layout.addWidget(self.defender2,2,2)
+        self.layout.addWidget(self.defender3,2,3)
+        self.layout.addWidget(self.midfielder1,1,3)
+        self.layout.addWidget(self.midfielder2,1,4)
         self.layout.addWidget(self.goalkeeper,3,2)
 
         #resets to default layout
@@ -223,6 +317,10 @@ class UserTeamWidget(QWidget):
 
         self.layout.addWidget(self.sortSelector)
         self.layout.addWidget(self.resetButton)
+
+    def getUserTeam(self, username):
+        userdownloader = downloader.AutoDownloader()
+        teamdict = userdownloader.getUserData(username)
 
     def setOrder(self, type):
         if type == 0:
@@ -235,7 +333,7 @@ class UserTeamWidget(QWidget):
         self.createDropDowns(False, None)
 
     def createDropDowns(self, isPlayerTeam, idlist):
-        positions = [1, 2, 2, 2, 2, 2, 3, 3, 3, 4, 4]
+        positions = [1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4]
         if isPlayerTeam == False:
             self.goalkeepers = self.createPlayerLists(1, isPlayerTeam, None)
             self.defenders = self.createPlayerLists(2, isPlayerTeam, None)
@@ -260,36 +358,47 @@ class UserTeamWidget(QWidget):
             self.defender1, 
             self.defender2, 
             self.defender3, 
-            self.defender4, 
-            self.defender5, 
             self.midfielder1, 
             self.midfielder2, 
             self.midfielder3, 
+            self.midfielder4, 
             self.attacker1, 
-            self.attacker2]
+            self.attacker2, 
+            self.attacker3]
         types = [self.goalkeepers, 
             self.defenders, 
             self.defenders, 
             self.defenders, 
-            self.defenders, 
-            self.defenders, 
             self.midfielders, 
             self.midfielders, 
             self.midfielders, 
+            self.midfielders, 
+            self.attackers, 
             self.attackers, 
             self.attackers]
         currentposition = positions[num]
         currenttype = types[num]
         currentposition.clear()
-        currentposition.addItems(currenttype)
+        for player in currenttype:
+            namePosition = self.fullnames.index(player)
+            currentID = self.ids[namePosition]
+            df = self.tempframe.query("id == @currentID")
+            team = df["team"].to_list()[0]
+            icon = IconGenerator.GetIcon(team)
+            currentposition.addItem(icon, player)
 
     def createPlayerLists(self, typenum, isplayerteam, currentid):
         if isplayerteam == True:
             currentplayer = self.tempframe[self.tempframe["id"]==currentid]#gets player from the main dataframe
-            currentfirstname = currentplayer.iloc[0, 12]#gets first name
-            currentsecondname = currentplayer.iloc[0, 21]#gets first name
+            currentfirstname = currentplayer.iloc[0, 2]#gets first name
+            currentsecondname = currentplayer.iloc[0, 3]#gets first name
             currentname = currentfirstname + " " + currentsecondname
-        playersframe = self.tempframe[self.tempframe["element_type"]==typenum]#gets all players in a position
+        players = self.createNamesList(typenum, isplayerteam, self.tempframe, currentname)
+        return players
+    
+    @staticmethod
+    def createNamesList(typenum, isplayerteam, playersframe, currentname):
+        playersframe = playersframe[playersframe["element_type"]==typenum]#gets all players in a position
         playersfirstname = playersframe["first_name"].to_list()
         playerssecondname = playersframe["second_name"].to_list()
         players = []
@@ -304,7 +413,7 @@ class UserTeamWidget(QWidget):
     def priceUpdate(self):
         maxprice = 1000
         totalcost = 0
-        dropdownslist = [self.goalkeeper, self.defender1, self.defender2, self.defender3, self.defender4, self.defender5, self.midfielder1, self.midfielder2, self.midfielder3, self.forward1, self.forward2]
+        dropdownslist = [self.goalkeeper, self.defender1, self.defender2, self.defender3, self.midfielder1, self.midfielder2, self.midfielder3, self.midfielder4, self.attacker1, self.forward1, self.forward2]
         for i in range(11):
             currentdropdown = dropdownslist[i]
             currentplayer = str(currentdropdown.currentText())
@@ -322,6 +431,10 @@ class UserTeamWidget(QWidget):
 
     def setPlayerTeam(self):
         self.tempframe = self.tempframe.sort_values("second_name")
+        file = open("data\\Evan-Team.json", "rb")
+        data = file.read()
+        file.close()
+        self.teamdict = json.loads(data)
         idslist = list(self.teamdict.values())
         self.createDropDowns(True, idslist)
 
@@ -329,7 +442,7 @@ class UserTeamWidget(QWidget):
         self.setPlayerTeam()
 
 
-def onStart():
+async def onStart(app):
     '''Checks if the downloaded data is out of date, if so it downloads new data'''
     r = requests.get("https://fantasy.premierleague.com/api/bootstrap-static/")
     newdata = json.loads(r.content)
@@ -340,13 +453,24 @@ def onStart():
         gameweeks = pd.DataFrame(newdata["events"])
         currentgameweek = getCurrentGameweek(gameweeks)
         downloader.AutoDownloader.downloadGenericData(currentgameweek)
+    widget = ex.centralWidget()
+    # hasattr just to be certain
+    if hasattr(widget, 'reload'):
+        widget.reload = True
 
 def getCurrentGameweek(gameweeks):
     for i in range(len(gameweeks.index)):
         if gameweeks.iloc[i, 4] == "true":
             return i+1
+        
+async def runGUI(app):
+    app.exec_()
 
+async def runAll(app):
+    await asyncio.gather(onStart(app), runGUI(app)) 
+
+teamdict = ""
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     ex = App()
-    sys.exit(app.exec_())
+    sys.exit(asyncio.run(runAll(app)))

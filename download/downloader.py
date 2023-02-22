@@ -77,7 +77,7 @@ class AutoDownloader():
         dataframe = dataframe[["code", "id", "name", "strength_overall_home", "strength_overall_away", "strength_attack_home", "strength_attack_away", "strength_defence_home", "strength_defence_away"]]
         return dataframe
 
-    def getUserData(user):
+    def getUserData(self, user):
         '''Downloads user data, returns a dictionary'''
         file = open("key.key", "rb")
         key = file.read()
@@ -156,7 +156,8 @@ class PlayerDownloader():
         self.playerteam = self.playerinfo["team"]
 
         return self.playerinfo, self.playerhistory 
-
-    def calculatePlayTime(self):
-        totaltime = self.playerinfo["minutes"]
-        return totaltime/self.totalgames
+    
+    @staticmethod
+    def calculatePlayTime(playerinfo, totalgames):
+        totaltime = playerinfo["minutes"]
+        return totaltime/totalgames

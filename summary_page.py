@@ -216,7 +216,6 @@ class SummaryPage(QWidget):
         self.performanceLayout.removeWidget(self.valueForMoneyTable)
         self.performanceLayout.removeWidget(self.gameweekPerformanceTable)
         self.bottomlayout.removeWidget(self.injuredTable)
-        print(position)
         self.createWidgets()
 
 def getCurrentGameweek(gameweeks):

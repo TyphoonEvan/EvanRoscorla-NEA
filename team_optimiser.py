@@ -11,7 +11,8 @@ class PerformancePredictor():
     def __init__(self, playerhistory):
         self.playerhistory = playerhistory
     
-    def getPrediction(self, df):
+    @staticmethod
+    def getPrediction(df):
         '''Uses linear regression to predict a players future performance, takes dataframe, returns 2 floats'''
         matrix = np.array(df.values,"int")
         x = matrix[:,0].reshape((-1,1))
