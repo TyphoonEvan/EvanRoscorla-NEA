@@ -8,6 +8,9 @@ FPL Calculator is a windows application with the following features:
 - Graphs comparing player stats
 - Summary page of the current gameweek
 
+# Team Optimiser
+The team optimiser uses linear regression with past data to predict the performance of players and create an optimial team for the next gameweek.
+
 # Getting Started
 **Dependencies**
 - pyqt5
@@ -23,7 +26,6 @@ FPL Calculator is a windows application with the following features:
 **Creating an account**
 1. Open the account creation menu
 2. Enter you username, fantasypremierleague.com password and FPL ID
-
 
 # Version History
 - 0.1 start of project

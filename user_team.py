@@ -47,8 +47,18 @@ class IconGenerator:
 class UserTeamWidget(QWidget):
     def __init__(self, parent, playersframe):
         super(QWidget, self).__init__(parent)
-        self.layout = QGridLayout(self)
+        self.teamLayout = QVBoxLayout()
+        self.pitchLayout = QGridLayout()
+        self.buttonsLayout = QVBoxLayout()
+        self.mainlayout = QHBoxLayout()
+        self.subsLayout = QHBoxLayout()
         self.playersframe = playersframe
+
+        self.teamLayout.addLayout(self.pitchLayout)
+        self.teamLayout.addLayout(self.subsLayout)
+        self.mainlayout.addLayout(self.teamLayout)
+        self.mainlayout.addLayout(self.buttonsLayout)
+        self.setLayout(self.mainlayout)
 
         self.tempframe = self.playersframe
         self.firstnames = self.playersframe["first_name"].to_list()
@@ -69,66 +79,87 @@ class UserTeamWidget(QWidget):
         self.sortSelector.currentIndexChanged.connect(self.setOrder)
 
         #creates dropdown
-        self.attacker2 = QComboBox()
-        self.attacker3 = QComboBox()
-        self.midfielder3 = QComboBox()
-        self.midfielder4 = QComboBox()
-        self.attacker1 = QComboBox()
-        self.defender1 = QComboBox()
-        self.defender2 = QComboBox()
-        self.defender3 = QComboBox()
-        self.midfielder1 = QComboBox()
-        self.midfielder2 = QComboBox()
-        self.goalkeeper = QComboBox()
+        self.player10 = QComboBox()
+        self.player11 = QComboBox()
+        self.player7 = QComboBox()
+        self.player8 = QComboBox()
+        self.player9 = QComboBox()
+        self.player2 = QComboBox()
+        self.player3 = QComboBox()
+        self.player4 = QComboBox()
+        self.player5 = QComboBox()
+        self.player6 = QComboBox()
+        self.player1 = QComboBox()
 
-        self.attacker2.setFixedSize(150, 40)
-        self.attacker3.setFixedSize(150, 40)
-        self.midfielder3.setFixedSize(150, 40)
-        self.midfielder4.setFixedSize(150, 40)
-        self.attacker1.setFixedSize(150, 40)
-        self.defender1.setFixedSize(150, 40)
-        self.defender2.setFixedSize(150, 40)
-        self.defender3.setFixedSize(150, 40)
-        self.midfielder1.setFixedSize(150, 40)
-        self.midfielder2.setFixedSize(150, 40)
-        self.goalkeeper.setFixedSize(150, 40)
+        self.sub4 = QComboBox()
+        self.sub3 = QComboBox()
+        self.sub2 = QComboBox()
+        self.sub1 = QComboBox()
 
-        self.attacker2.setIconSize(QSize(40, 32))
-        self.attacker3.setIconSize(QSize(40, 32))
-        self.midfielder3.setIconSize(QSize(40, 32))
-        self.midfielder4.setIconSize(QSize(40, 32))
-        self.attacker1.setIconSize(QSize(40, 32))
-        self.defender1.setIconSize(QSize(40, 32))
-        self.defender2.setIconSize(QSize(40, 32))
-        self.defender3.setIconSize(QSize(40, 32))
-        self.midfielder1.setIconSize(QSize(40, 32))
-        self.midfielder2.setIconSize(QSize(40, 32))
-        self.goalkeeper.setIconSize(QSize(40, 32))
-        #adds dropdowns to tab
-        self.layout.addWidget(self.attacker2,0,0)
-        self.layout.addWidget(self.attacker3,0,4)
-        self.layout.addWidget(self.midfielder3,1,0)
-        self.layout.addWidget(self.midfielder4,1,1)
-        self.layout.addWidget(self.attacker1,0,2)
-        self.layout.addWidget(self.defender1,2,1)
-        self.layout.addWidget(self.defender2,2,2)
-        self.layout.addWidget(self.defender3,2,3)
-        self.layout.addWidget(self.midfielder1,1,3)
-        self.layout.addWidget(self.midfielder2,1,4)
-        self.layout.addWidget(self.goalkeeper,3,2)
+        self.player10.setFixedSize(150, 40)
+        self.player11.setFixedSize(150, 40)
+        self.player7.setFixedSize(150, 40)
+        self.player8.setFixedSize(150, 40)
+        self.player9.setFixedSize(150, 40)
+        self.player2.setFixedSize(150, 40)
+        self.player3.setFixedSize(150, 40)
+        self.player4.setFixedSize(150, 40)
+        self.player5.setFixedSize(150, 40)
+        self.player6.setFixedSize(150, 40)
+        self.player1.setFixedSize(150, 40)
+
+        self.sub4.setFixedSize(150, 40)
+        self.sub3.setFixedSize(150, 40)
+        self.sub2.setFixedSize(150, 40)
+        self.sub1.setFixedSize(150, 40)
+
+        self.player10.setIconSize(QSize(40, 32))
+        self.player11.setIconSize(QSize(40, 32))
+        self.player7.setIconSize(QSize(40, 32))
+        self.player8.setIconSize(QSize(40, 32))
+        self.player9.setIconSize(QSize(40, 32))
+        self.player2.setIconSize(QSize(40, 32))
+        self.player3.setIconSize(QSize(40, 32))
+        self.player4.setIconSize(QSize(40, 32))
+        self.player5.setIconSize(QSize(40, 32))
+        self.player6.setIconSize(QSize(40, 32))
+        self.player1.setIconSize(QSize(40, 32))
+        
+        self.sub4.setIconSize(QSize(40, 32))
+        self.sub3.setIconSize(QSize(40, 32))
+        self.sub2.setIconSize(QSize(40, 32))
+        self.sub1.setIconSize(QSize(40, 32))
 
         #resets to default layout
         self.resetButton = QPushButton("Reset")
         self.resetButton.clicked.connect(self.reset)
 
-        self.createDropDowns(False, None)
+        self.saveButton = QPushButton("Save Team")
+        self.saveButton.clicked.connect(self.saveTeam)
 
-        self.layout.addWidget(self.sortSelector)
-        self.layout.addWidget(self.resetButton)
+        self.setOrder(0)
+        self.setUserTeam()
+        self.setFormation()
 
-    def getUserTeam(self, username):
-        userdownloader = downloader.AutoDownloader()
-        teamdict = userdownloader.getUserData(username)
+        self.sortSelector.setFixedSize(150, 40)
+        self.resetButton.setFixedSize(150, 40)
+        self.saveButton.setFixedSize(150, 40)
+
+        self.buttonsLayout.addWidget(self.sortSelector)
+        self.buttonsLayout.addWidget(self.resetButton)
+        self.buttonsLayout.addWidget(self.saveButton)
+
+        self.subsLayout.addWidget(self.sub1)
+        self.subsLayout.addWidget(self.sub2)
+        self.subsLayout.addWidget(self.sub3)
+        self.subsLayout.addWidget(self.sub4)
+
+    def getUserTeam(self):
+        with open("data\\Evan-Team.json", "rb") as file:
+            data = file.read()
+            data = json.loads(data)
+            file.close()
+            return data
 
     def setOrder(self, type):
         if type == 0:
@@ -162,17 +193,17 @@ class UserTeamWidget(QWidget):
             self.populateDropDown(i)
     
     def populateDropDown(self, num):
-        positions = [self.goalkeeper, 
-            self.defender1, 
-            self.defender2, 
-            self.defender3, 
-            self.midfielder1, 
-            self.midfielder2, 
-            self.midfielder3, 
-            self.midfielder4, 
-            self.attacker1, 
-            self.attacker2, 
-            self.attacker3]
+        positions = [self.player1, 
+            self.player2, 
+            self.player3, 
+            self.player4, 
+            self.player5, 
+            self.player6, 
+            self.player7, 
+            self.player8, 
+            self.player9, 
+            self.player10, 
+            self.player11]
         types = [self.goalkeepers, 
             self.defenders, 
             self.defenders, 
@@ -222,7 +253,7 @@ class UserTeamWidget(QWidget):
     def priceUpdate(self):
         maxprice = 1000
         totalcost = 0
-        dropdownslist = [self.goalkeeper, self.defender1, self.defender2, self.defender3, self.midfielder1, self.midfielder2, self.midfielder3, self.midfielder4, self.attacker1, self.forward1, self.forward2]
+        dropdownslist = [self.player1, self.player2, self.player3, self.player4, self.player5, self.player6, self.player7, self.player8, self.player9, self.player10, self.player11]
         for i in range(11):
             currentdropdown = dropdownslist[i]
             currentplayer = str(currentdropdown.currentText())
@@ -238,14 +269,77 @@ class UserTeamWidget(QWidget):
                 if self.tempframe.iloc[x,18] > remainingmoney:
                     self.tempframe.drop(self.tempframe.index[x])
 
-    def setPlayerTeam(self):
+    def setUserTeam(self):
         self.tempframe = self.tempframe.sort_values("second_name")
-        file = open("data\\Evan-Team.json", "rb")
-        data = file.read()
-        file.close()
-        self.teamdict = json.loads(data)
+        self.teamdict = self.getUserTeam()
         idslist = list(self.teamdict.values())
-        self.createDropDowns(True, idslist)
+        teamlist = idslist[:11]
+        subslist = idslist[11:]
+        self.createDropDowns(True, teamlist)
+        self.populateSubs(True, subslist)
+
+    def saveTeam(self):
+        dropdownslist = [self.player1, self.player2, self.player3, self.player4, self.player5, self.player6, self.player7, self.player8, self.player9, self.player10, self.player11]
+        data = self.getUserTeam()
+        for i in range(11):
+            currentdropdown = dropdownslist[i]
+            currentplayer = str(currentdropdown.currentText())
+            index = self.fullnames.index(currentplayer)
+            id = self.ids[index]
+            data[str(i+1)] = id
+        data = json.dumps(data)
+        with open("data\\Evan-Team.json", "w") as file:
+            file.write(data)
+            file.close()
 
     def reset(self):
-        self.setPlayerTeam()
+        self.setUserTeam()
+
+    def getPosition(self, id):
+        player = self.tempframe.query("id == @id")
+        position = player.loc[:, "element_type"].to_list()[0]
+        print(position)
+        return position
+    
+    def setFormation(self):
+        positions = {1:[2], 2:[1,3], 3:[0,2,4], 4:[0,1,3,4], 5:[0,1,2,3,4,5]}
+        positionsList = []
+        team = self.getUserTeam()
+        for i in range(11):
+            id = team[str(i+1)]
+            position = self.getPosition(id)
+            positionsList.append(position)
+        forwards = positions[positionsList.count(4)]
+        midfielders = positions[positionsList.count(3)]
+        defenders = positions[positionsList.count(2)]
+        positionsList = []
+        positionsList = defenders + midfielders + forwards
+        playersList = [self.player2, self.player3, self.player4, self.player5, self.player6, self.player7, self.player8, self.player9, self.player10, self.player11]
+        self.pitchLayout.addWidget(self.player1,4,2)
+        for i in range(10):
+            if (i) < len(defenders):
+                self.pitchLayout.addWidget(playersList[i],3,positionsList[i])
+            elif (i) < (len(defenders)+len(midfielders)):
+                self.pitchLayout.addWidget(playersList[i],2,positionsList[i])
+            elif (i) < (len(defenders)+len(midfielders)+len(forwards)):
+                self.pitchLayout.addWidget(playersList[i],1,positionsList[i])
+
+    def populateSubs(self, isPlayerTeam, idslist):
+        if isPlayerTeam == True:
+            positions = []
+            for i in range(4):
+                positions.append(self.getPosition(idslist[i]))
+        else:
+            positions = [self.goalkeepers, self.defenders, self.midfielders, self.attackers]
+        dropdowns = [self.sub1, self.sub2, self.sub3, self.sub4]
+        for i in range(4):
+            if isPlayerTeam == True:
+                positions[i] = self.createPlayerLists(positions[i], True, idslist[i])
+            dropdowns[i].clear()
+            for player in positions[i]:
+                namePosition = self.fullnames.index(player)
+                currentID = self.ids[namePosition]
+                df = self.tempframe.query("id == @currentID")
+                team = df["team"].to_list()[0]
+                icon = IconGenerator.GetIcon(team)
+                dropdowns[i].addItem(icon, player)

@@ -1,14 +1,10 @@
-import pandas as pd
-import json
+searchList = [True, False, True, True, False, True, False, False]
 
-file = open("player-data.json", "r")
-data = file.read()
-file.close()
+idsList1 = [i for i in range(len(searchList)) if searchList[i] == True]
+idsList2 = []
+for j in range(len(searchList)):
+    if searchList[j] == True:
+        idsList2.append(j)
 
-data = json.loads(data)
-dataframe = pd.DataFrame(data)
-dataframe = dataframe.iloc[[2, 4, 10, 14], :]
-data = dataframe.to_json()
-file = open("test_data.json", "w")
-file.write(data)
-file.close()
+print(idsList1)
+print(idsList2)

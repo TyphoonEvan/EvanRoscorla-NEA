@@ -50,9 +50,9 @@ class TeamOptimiser():
         pass
 
     def prepareData(self):
-        file = open("data.json", "r")
-        data = file.read()
-        file.close()
+        with open("data.json", "r") as file:
+            data = file.read()
+            file.close()
         data = json.loads(data)
         dataframe = pd.DataFrame(data)
         columns = list(dataframe.columns)

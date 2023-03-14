@@ -3,7 +3,7 @@ import sys, os, configparser
 import json
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
-from PyQt5.QtCore import pyqtSlot, Qt, QAbstractTableModel, QSize
+from PyQt5.QtCore import Qt 
 from download import downloader
 import pandas as pd
 from team_optimiser import *
@@ -13,6 +13,7 @@ import requests
 from summary_page import SummaryPage
 from player_table import PlayerTable
 from user_team import UserTeamWidget
+from graphs import GraphPage
 import asyncio
 
 class App(QMainWindow):
@@ -25,6 +26,7 @@ class App(QMainWindow):
         self.height = 800
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
+        self.setWindowIcon(QIcon("Icon.png"))
 
         splash_pix = QPixmap("splash_screen.png")
         splash = QSplashScreen(splash_pix, Qt.WindowStaysOnTopHint)
@@ -68,6 +70,7 @@ class CreateAccount(QDialog):
 
         self.width = 400
         self.height = 240
+        self.setWindowTitle("Create Account")
 
         self.namelabel = QLabel(self)
         self.namelabel.setText("Name:")
@@ -95,7 +98,7 @@ class CreateAccount(QDialog):
 
         self.button = QPushButton("Create account", self)
         self.button.move(20,200)
-        
+
         self.button.clicked.connect(self.create)
         self.show()
 
@@ -104,6 +107,7 @@ class Login(QDialog):
         super().__init__()
         self.width = 400
         self.height = 240
+        self.setWindowTitle("Login")
         self.namelabel = QLabel(self)
         self.namelabel.setText("Name:")
         self.nameline = QLineEdit(self)
@@ -138,10 +142,10 @@ class Login(QDialog):
         data = data.decode("utf-8")
         data = ast.literal_eval(data)
         if data["password"] == password:
-            globalGetUserTeam(username)           
+            globalGetUserTeam(username)
 
 def globalGetUserTeam(username):
-    UserTeamWidget.getUserTeam(UserTeamWidget, username)
+    UserTeamWidget.getUserTeam(UserTeamWidget)
 
 class YesOrNoDialog(QDialog):
     def __init__(self):
@@ -169,20 +173,21 @@ class MainWidget(QWidget):
         self.tabs = QTabWidget()
         self.myTeam = QWidget()
         self.playerStats = QWidget()
-        self.teamStats = QWidget()
+        self.graphTab = QWidget()
         self.summaryPage = SummaryPage(self)
+        self.graphs = GraphPage(self)
         self.tabs.resize(300,200)
 
+        self.tabs.addTab(self.summaryPage,"Summary")
         self.tabs.addTab(self.myTeam,"My Team")
         self.tabs.addTab(self.playerStats,"Player Stats")
-        self.tabs.addTab(self.teamStats,"Team Stats")
-        self.tabs.addTab(self.summaryPage,"Summary")
+        self.tabs.addTab(self.graphTab,"Graphs")
 
         self.tabs.currentChanged.connect(self.onReload)
 
         self.myTeam.layout = QVBoxLayout(self.myTeam)
         self.playerStats.layout = QVBoxLayout(self.playerStats)
-        self.teamStats.layout = QVBoxLayout(self.teamStats)
+        self.graphTab.layout = QVBoxLayout(self.graphTab)
 
         self.playerStats.layout.addWidget(PlayerTable(self))
         self.getData()
@@ -190,6 +195,8 @@ class MainWidget(QWidget):
         self.userTeamWidget = UserTeamWidget(self, self.playersframe)
 
         self.myTeam.layout.addWidget(self.userTeamWidget)
+
+        self.graphTab.layout.addWidget(self.graphs)
 
         self.layout.addWidget(self.tabs)
         self.setLayout(self.layout)
@@ -203,7 +210,7 @@ class MainWidget(QWidget):
         self.teamsframe = self.downloader.getTeamsFrame()
 
     def onReload(self):
-        if self.reload == True:
+        if self.reload is True:
             self.getData()
             self.reload = False
 
@@ -211,15 +218,15 @@ async def onStart(app):
     '''Checks if the downloaded data is out of date, if so it downloads new data'''
     r = requests.get("https://fantasy.premierleague.com/api/bootstrap-static/")
     newdata = json.loads(r.content)
-    file = open("data\\bootstrap-static.json", "rb")
-    data = file.read()
+    with open("data\\bootstrap-static.json", "rb") as file:
+        data = file.read()
+        file.close()
     data = json.loads(data)
     if data != newdata:
         gameweeks = pd.DataFrame(newdata["events"])
         currentgameweek = getCurrentGameweek(gameweeks)
         downloader.AutoDownloader.downloadGenericData(currentgameweek)
     widget = ex.centralWidget()
-    # hasattr just to be certain
     if hasattr(widget, 'reload'):
         widget.reload = True
 
@@ -227,12 +234,12 @@ def getCurrentGameweek(gameweeks):
     for i in range(len(gameweeks.index)):
         if gameweeks.iloc[i, 4] == "true":
             return i+1
-        
+
 async def runGUI(app):
     app.exec_()
 
 async def runAll(app):
-    await asyncio.gather(onStart(app), runGUI(app)) 
+    await asyncio.gather(onStart(app), runGUI(app))
 
 teamdict = ""
 if __name__ == "__main__":

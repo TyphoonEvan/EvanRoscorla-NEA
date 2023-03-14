@@ -39,8 +39,9 @@ class PlayerTable(QWidget):
         self.mainlayout.addWidget(self.playerslayout)
 
     def getTableData(self):
-        file = open("data.json", "rb")
-        data = file.read()
+        with open("data.json", "rb") as file:
+            data = file.read()
+            file.close()
         data = json.loads(data)
         self.dataframe = pd.DataFrame(data)
         self.dataframe = self.dataframe.drop(["index", "code", "team", "minutes", "ict_index", "influence", "creativity", "threat", "now_cost", "element_type", "id_avg", "average_play_time"], axis=1)
@@ -63,10 +64,7 @@ class PlayerTable(QWidget):
         searchString = self.searchBar.text()
         searchFrame = self.dataframe["Player name"].str.contains(searchString, regex=False)
         searchList = searchFrame.to_list()
-        idsList = []
-        for i in range(len(searchList)):
-            if searchList[i] == True:
-                idsList.append(i+1)
+        idsList = [i+1 for i in range(len(searchList)) if searchList[i] == True]
         self.tempframe = self.dataframe.query("ID in @idsList")
         self.createPlayerTable()
         self.mainlayout.removeWidget(self.playerslayout)

@@ -63,25 +63,25 @@ class AutoDownloader():
         dataframe = playersubframe.join(predictedstatframe, on="id")
         dataframe = dataframe.reset_index()
         dataframe = dataframe.join(averages, rsuffix="_avg")
-        file = open("data\\player-data.json", "w")
-        file.write(json.dumps(dataframe.to_dict()))
-        file.close()
+        with open("data\\player-data.json", "w") as file:
+            file.write(json.dumps(dataframe.to_dict()))
+            file.close()
 
     def getTeamsFrame(self):
         '''Downloads team specific data, returns a dataframe'''
-        file = open("data\\bootstrap-static.json", "rb")
-        data = file.read()
-        data = json.loads(data)
-        file.close()
+        with open("data\\bootstrap-static.json", "rb") as file:
+            data = file.read()
+            data = json.loads(data)
+            file.close()
         dataframe = pd.DataFrame(data["teams"])
         dataframe = dataframe[["code", "id", "name", "strength_overall_home", "strength_overall_away", "strength_attack_home", "strength_attack_away", "strength_defence_home", "strength_defence_away"]]
         return dataframe
 
     def getUserData(self, user):
         '''Downloads user data, returns a dictionary'''
-        file = open("key.key", "rb")
-        key = file.read()
-        file.close()
+        with open("key.key", "rb") as file:
+            key = file.read()
+            file.close()
         f = Fernet(key)
 
         session = requests.session()
@@ -103,10 +103,10 @@ class AutoDownloader():
             "accept-language": "en-US,en;q=0.9,he;q=0.8" ,
             }
 
-        file = open("config\\"+user+".cnfg", "rb")
-        data = file.read()
-        data = f.decrypt(data).decode("utf-8")
-        file.close()
+        with open("config\\"+user+".cnfg", "rb") as file:
+            data = file.read()
+            data = f.decrypt(data).decode("utf-8")
+            file.close()
         data = ast.literal_eval(data)
         password = data.get("password")
         email = data.get("username")
@@ -122,7 +122,6 @@ class AutoDownloader():
         session.post(url, data=payload, headers=headers)
         response = session.get("https://fantasy.premierleague.com/api/my-team/"+id+"/")
         response = json.loads(response.content)
-        print(response)
         userteam = response["picks"]
         userteam = pd.DataFrame(userteam)
         refinedteam = userteam[["element", "position", "is_captain", "is_vice_captain"]]

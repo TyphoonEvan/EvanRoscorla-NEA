@@ -74,8 +74,9 @@ class SummaryPage(QWidget):
         self.injuredBox = QGroupBox("Injuries")
         self.injuredBox.setLayout(self.injuredLayout)
 
-        file = open("data.json", "rb")
-        data = file.read()
+        with open("data.json", "rb") as file:
+            data = file.read()
+            file.close()
         data = json.loads(data)
         playersframe = pd.DataFrame(data)
         playersframe = playersframe[["id", "first_name", "second_name", "team",
@@ -121,9 +122,9 @@ class SummaryPage(QWidget):
         gameweeks = pd.DataFrame(data["events"])
         currentgameweek = float(getCurrentGameweek(gameweeks))
 
-        file = open("data\\Evan-Team.json", "rb")
-        data = file.read()
-        file.close()
+        with open("data\\Evan-Team.json", "rb") as file:
+            data = file.read()
+            file.close()
         teamdict = json.loads(data)
 
         self.fixtures = self.fixtures.query("event == @currentgameweek")

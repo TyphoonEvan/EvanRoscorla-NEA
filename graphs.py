@@ -1,6 +1,7 @@
 import pandas as pd
 import pyqtgraph as pg
 from PyQt5.QtWidgets import *
+from PyQt5.QtGui import QIcon
 import sys
 import json
 
@@ -14,13 +15,13 @@ class App(QMainWindow):
         self.height = 800
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
+        self.setWindowIcon(QIcon("Icon.png"))
 
+        self.mainWidget = GraphPage(self)
+        self.setCentralWidget(self.mainWidget)
         file = open("stylesheet.txt", "r")
         stylesheet = file.read()
         self.setStyleSheet(stylesheet)
-
-        self.graphPage = GraphPage(self)
-        self.setCentralWidget(self.graphPage)
 
         self.show()
 
@@ -38,8 +39,9 @@ class GraphPage(QWidget):
         self.var2Box.currentIndexChanged.connect(self.createGraph)
         self.positionBox.currentIndexChanged.connect(self.createGraph)
 
-        file = open("data.json", "rb")
-        data = file.read()
+        with open("data.json", "rb") as file:
+            data = file.read()
+            file.close()
         data = json.loads(data)
         self.dataframe = pd.DataFrame(data)
         self.dataframe = self.dataframe.drop(["index", "code", "team", "id_avg"], axis=1)
@@ -110,16 +112,21 @@ class PandasGraph(QWidget):
         yTitle = self.getYAxis()
         return yTitle + "/" + xTitle
     def createGraph(self):
-        plot = pg.ScatterPlotItem(size=9)
+        plot = pg.ScatterPlotItem(size=10)
         graph = pg.plot()
-        plot.setData(self.dataframe.iloc[:, 0], self.dataframe.iloc[:, 1], data=self.dataframe.iloc[:, 2], pen="w", hoverable=True, setAcceptHoverEvents=True)
+        xVals = self.dataframe.iloc[:, 0].sort_values(ascending=False)
+        yVals = self.dataframe.iloc[:, 1].sort_values(ascending=False)
+        maxX = xVals.head(1).to_list()[0]
+        maxY = yVals.head(1).to_list()[0]
+        colourList = [pg.mkColor(255-int((xVals[i]/maxX)*225), int((yVals[i]/maxY)*225), 63, 255) for i in range(len(xVals))]
+        plot.setData(xVals, yVals, data=self.dataframe.iloc[:, 2], pen="w", hoverable=True, setAcceptHoverEvents=True, brush=colourList)
         graph.addItem(plot)
-        graph.setBackground("black")
+        graph.setBackground("white")
         graph.setTitle(self.getTitle())
         graph.setLabel("left", self.getYAxis())
         graph.setLabel("bottom", self.getXAxis())
         return graph
-
+    
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     ex = App()
