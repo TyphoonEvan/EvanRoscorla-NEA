@@ -42,6 +42,7 @@ class IconGenerator:
             self.icons[18] = QIcon("premiership_kits\\Tottenham_Hotspur_home.png")
             self.icons[19] = QIcon("premiership_kits\\West_Ham_home.png")
             self.icons[20] = QIcon("premiership_kits\\Wolves_home.png")
+            self.icons[21] = QIcon("premiership_kits\\injured.png")
         return self.icons[teamID]
 
 class UserTeamWidget(QWidget):
@@ -72,9 +73,18 @@ class UserTeamWidget(QWidget):
         for i in range(len(self.fullnames)):
             currentdict = {"name": self.fullnames[i], "price": self.prices[i]}
             self.namesandprices.append(currentdict)
+        self.fullnamesSeries = pd.Series(self.fullnames)
+        
+        self.injured = self.tempframe["chance_of_playing_this_round"].to_list()
+        self.injured = pd.Series(self.injured)
+        self.injured = pd.concat([self.injured, self.fullnamesSeries], axis=1)
+        self.injured = self.injured.rename({0: "chance"}, axis=1)
+        self.injured = self.injured.query("chance < 75")
+        self.injured = self.injured.rename({"chance": "Chance to Play", 1: "Player"}, axis=1)
+        self.injured = self.injured["Player"].to_list()
 
         self.sortSelector = QComboBox()
-        items = ["Alphabetical", "Total Points", "Points Per Game"]
+        items = ["Total Points", "Points Per Game"]
         self.sortSelector.addItems(items)
         self.sortSelector.currentIndexChanged.connect(self.setOrder)
 
@@ -137,7 +147,8 @@ class UserTeamWidget(QWidget):
         self.saveButton = QPushButton("Save Team")
         self.saveButton.clicked.connect(self.saveTeam)
 
-        self.setOrder(0)
+        self.dataframe = self.tempframe.sort_values("second_name")
+        self.createDropDowns(False, None)
         self.setUserTeam()
         self.setFormation()
 
@@ -162,17 +173,82 @@ class UserTeamWidget(QWidget):
             return data
 
     def setOrder(self, type):
-        if type == 0:
-            dataframe = self.tempframe.sort_values("second_name")
-        elif type == 1:
-            dataframe = self.tempframe.sort_values("total_points")
-        elif type == 2:
-            dataframe = self.tempframe.sort_values("points_per_game")
-        self.dataframe = dataframe
-        self.createDropDowns(False, None)
+        team, subs = self.sortTeam(type)
+        team = team.sort_values("element_type")
+        team = pd.concat([team, subs], axis=0)
+        data = self.getUserTeam()
+        ids = team["id"].to_list()
+        print(ids)
+        for i in range(15):
+            id = ids[i]
+            data[str(i+1)] = id
+        print(data)
+        data = json.dumps(data)
+        with open("data\\Evan-Team.json", "w") as file:
+            file.write(data)
+            file.close()
+        self.setUserTeam()
 
+    def sortTeam(self, type):
+        dropdowns = [self.player2, 
+            self.player3, 
+            self.player4, 
+            self.player5, 
+            self.player6, 
+            self.player7, 
+            self.player8, 
+            self.player9, 
+            self.player10, 
+            self.player11,
+            self.sub1,
+            self.sub2,
+            self.sub3,
+            self.sub4]
+        currentplayer = str(self.player1.currentText())
+        namePosition = self.fullnames.index(currentplayer)
+        currentID = self.ids[namePosition]
+        player = self.tempframe.query("id == @currentID")
+        teamframe = player
+        for i in range(len(dropdowns)):
+            currentdropdown = dropdowns[i]
+            currentplayer = str(currentdropdown.currentText())
+            namePosition = self.fullnames.index(currentplayer)
+            currentID = self.ids[namePosition]
+            player = self.tempframe.query("id == @currentID")
+            teamframe = pd.concat([teamframe, player], axis=0)
+        if type == 0:
+            teamframe = teamframe.sort_values("total_points", ascending=False)
+        elif type == 1:
+            teamframe = teamframe.sort_values("points_per_game", ascending=False)
+        valid = False
+        while valid == False:
+            team = teamframe.head(11)
+            subs = teamframe.tail(4)
+            positions = team["element_type"].to_list()
+            if positions.count(1) != 0:
+                if positions.count(2) >= 1 and positions.count(2) <= 5:
+                    if positions.count(3) >= 1 or positions.count(3) <= 5:
+                        if positions.count(4) >= 1 or positions.count(4) <= 5:
+                            valid = True
+                            return team, subs
+                        else:
+                            temp = teamframe.head(1)
+                            teamframe.drop(1, axis=0)
+                            teamframe = pd.concat([teamframe, temp], axis=0)
+                    else:
+                        temp = teamframe.head(1)
+                        teamframe.drop(1, axis=0)
+                        teamframe = pd.concat([teamframe, temp], axis=0)
+                else:
+                    temp = teamframe.head(1)
+                    teamframe.drop(1, axis=0)
+                    teamframe = pd.concat([teamframe, temp], axis=0)
+            else:
+                temp = teamframe.head(1)
+                teamframe.drop(1, axis=0)
+                teamframe = pd.concat([teamframe, temp], axis=0)
+                    
     def createDropDowns(self, isPlayerTeam, idlist):
-        positions = [1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4]
         if isPlayerTeam == False:
             self.goalkeepers = self.createPlayerLists(1, isPlayerTeam, None)
             self.defenders = self.createPlayerLists(2, isPlayerTeam, None)
@@ -181,7 +257,7 @@ class UserTeamWidget(QWidget):
         for i in range(11):
             if isPlayerTeam == True:
                 currentid = idlist[i]
-                position = positions[i]
+                position = self.getPosition(currentid)
                 if position == 1:
                     self.goalkeepers = self.createPlayerLists(1, isPlayerTeam, currentid)
                 elif position == 2:
@@ -298,7 +374,6 @@ class UserTeamWidget(QWidget):
     def getPosition(self, id):
         player = self.tempframe.query("id == @id")
         position = player.loc[:, "element_type"].to_list()[0]
-        print(position)
         return position
     
     def setFormation(self):
@@ -340,6 +415,9 @@ class UserTeamWidget(QWidget):
                 namePosition = self.fullnames.index(player)
                 currentID = self.ids[namePosition]
                 df = self.tempframe.query("id == @currentID")
-                team = df["team"].to_list()[0]
+                if player in self.injured:
+                    team = 21
+                else:
+                    team = df["team"].to_list()[0]
                 icon = IconGenerator.GetIcon(team)
                 dropdowns[i].addItem(icon, player)
