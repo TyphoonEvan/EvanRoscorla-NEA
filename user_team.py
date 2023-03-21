@@ -50,15 +50,18 @@ class UserTeamWidget(QWidget):
         super(QWidget, self).__init__(parent)
         self.teamLayout = QVBoxLayout()
         self.pitchLayout = QGridLayout()
+        self.buttonsFrame = QFrame()
         self.buttonsLayout = QVBoxLayout()
         self.mainlayout = QHBoxLayout()
         self.subsLayout = QHBoxLayout()
         self.playersframe = playersframe
 
+        self.buttonsFrame.setLayout(self.buttonsLayout)
+        self.buttonsFrame.setFrameShape(1)
         self.teamLayout.addLayout(self.pitchLayout)
         self.teamLayout.addLayout(self.subsLayout)
         self.mainlayout.addLayout(self.teamLayout)
-        self.mainlayout.addLayout(self.buttonsLayout)
+        self.mainlayout.addWidget(self.buttonsFrame)
         self.setLayout(self.mainlayout)
 
         self.tempframe = self.playersframe
@@ -84,7 +87,7 @@ class UserTeamWidget(QWidget):
         self.injured = self.injured["Player"].to_list()
 
         self.sortSelector = QComboBox()
-        items = ["Total Points", "Points Per Game"]
+        items = ["Total Points", "Points Per Game", "Goals", "Assists", "Predicted Goals", "Predicted Assists", "Predicted Saves", "Predicted Points"]
         self.sortSelector.addItems(items)
         self.sortSelector.currentIndexChanged.connect(self.setOrder)
 
@@ -166,7 +169,9 @@ class UserTeamWidget(QWidget):
         self.subsLayout.addWidget(self.sub4)
 
     def getUserTeam(self):
-        with open("data\\Evan-Team.json", "rb") as file:
+        filename = self.GetLastModified().name
+        filename = "teams\\"+filename
+        with open(filename, "rb") as file:
             data = file.read()
             data = json.loads(data)
             file.close()
@@ -178,13 +183,13 @@ class UserTeamWidget(QWidget):
         team = pd.concat([team, subs], axis=0)
         data = self.getUserTeam()
         ids = team["id"].to_list()
-        print(ids)
-        for i in range(15):
+        for i in range(len(ids)):
             id = ids[i]
             data[str(i+1)] = id
-        print(data)
         data = json.dumps(data)
-        with open("data\\Evan-Team.json", "w") as file:
+        filename = self.GetLastModified().name
+        filename = "teams\\"+filename
+        with open(filename, "w") as file:
             file.write(data)
             file.close()
         self.setUserTeam()
@@ -216,10 +221,9 @@ class UserTeamWidget(QWidget):
             currentID = self.ids[namePosition]
             player = self.tempframe.query("id == @currentID")
             teamframe = pd.concat([teamframe, player], axis=0)
-        if type == 0:
-            teamframe = teamframe.sort_values("total_points", ascending=False)
-        elif type == 1:
-            teamframe = teamframe.sort_values("points_per_game", ascending=False)
+        items = ["total_points", "points_per_game", "goals_scored", "assists", "predicted_goals_scored", "predicted_assists", "predicted_saves", "predicted_points_per_game"]
+        teamframe = teamframe.sort_values(items[type], ascending=False)
+        teamframe = teamframe.reset_index()
         valid = False
         while valid == False:
             team = teamframe.head(11)
@@ -364,7 +368,9 @@ class UserTeamWidget(QWidget):
             id = self.ids[index]
             data[str(i+1)] = id
         data = json.dumps(data)
-        with open("data\\Evan-Team.json", "w") as file:
+        filename = self.GetLastModified().name
+        filename = "teams\\"+filename
+        with open(filename, "w") as file:
             file.write(data)
             file.close()
 
@@ -421,3 +427,13 @@ class UserTeamWidget(QWidget):
                     team = df["team"].to_list()[0]
                 icon = IconGenerator.GetIcon(team)
                 dropdowns[i].addItem(icon, player)
+
+    def GetLastModified():
+        items = os.scandir("teams")
+        def get_modified(entry):
+            return entry.stat().st_mtime
+        sorted = []
+        for item in items:
+            sorted.append(item)
+        sorted.sort(key=get_modified, reverse=False)     
+        return sorted.pop()   

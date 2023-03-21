@@ -122,7 +122,7 @@ class SummaryPage(QWidget):
         gameweeks = pd.DataFrame(data["events"])
         currentgameweek = float(getCurrentGameweek(gameweeks))
 
-        with open("data\\Evan-Team.json", "rb") as file:
+        with open("teams\\Evan-Team.json", "rb") as file:
             data = file.read()
             file.close()
         teamdict = json.loads(data)
