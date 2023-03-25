@@ -173,7 +173,6 @@ class MainWidget(QWidget):
         self.tabs = QTabWidget()
         self.myTeam = QWidget()
         self.playerStats = QWidget()
-        self.graphTab = QWidget()
         self.summaryPage = SummaryPage(self)
         self.graphs = GraphPage(self)
         self.tabs.resize(300,200)
@@ -181,13 +180,12 @@ class MainWidget(QWidget):
         self.tabs.addTab(self.summaryPage,"Summary")
         self.tabs.addTab(self.myTeam,"My Team")
         self.tabs.addTab(self.playerStats,"Player Stats")
-        self.tabs.addTab(self.graphTab,"Graphs")
+        self.tabs.addTab(self.graphs,"Graphs")
 
         self.tabs.currentChanged.connect(self.onReload)
 
         self.myTeam.layout = QVBoxLayout(self.myTeam)
         self.playerStats.layout = QVBoxLayout(self.playerStats)
-        self.graphTab.layout = QVBoxLayout(self.graphTab)
 
         self.playerStats.layout.addWidget(PlayerTable(self))
         self.getData()
@@ -195,8 +193,6 @@ class MainWidget(QWidget):
         self.userTeamWidget = UserTeamWidget(self, self.playersframe)
 
         self.myTeam.layout.addWidget(self.userTeamWidget)
-
-        self.graphTab.layout.addWidget(self.graphs)
 
         self.layout.addWidget(self.tabs)
         self.setLayout(self.layout)

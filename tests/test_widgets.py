@@ -1,6 +1,6 @@
 import sys
 sys.path.append('..')
-from main import UserTeamWidget
+from user_team import UserTeamWidget
 from summary_page import pandasModel
 import json
 import pandas as pd
@@ -22,3 +22,12 @@ def getTestData():
     data = json.loads(data)
     dataframe = pd.DataFrame(data)
     return dataframe
+
+def test_MostRecentFile():
+    with open("test_files\\file1.txt", "w") as file:
+        file.write("1")
+        file.close()
+    filename = UserTeamWidget.GetLastModified("test_files")
+    with open(filename, "r") as file:
+        assert (file.read() == "1")
+        file.close()

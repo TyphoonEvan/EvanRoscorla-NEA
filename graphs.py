@@ -29,15 +29,13 @@ class GraphPage(QWidget):
     def __init__(self, parent):
         super(QWidget, self).__init__(parent)
         self.mainLayout = QVBoxLayout(self)
-        self.selectorLayout = QHBoxLayout(self)
+        self.selectorLayout = QHBoxLayout()
 
         self.var1Box = QComboBox(self)
         self.var2Box = QComboBox(self)
         self.positionBox = QComboBox(self)
 
-        self.var1Box.currentIndexChanged.connect(self.createGraph)
-        self.var2Box.currentIndexChanged.connect(self.createGraph)
-        self.positionBox.currentIndexChanged.connect(self.createGraph)
+        self.mainLayout.addLayout(self.selectorLayout)
 
         with open("data.json", "rb") as file:
             data = file.read()
@@ -70,15 +68,18 @@ class GraphPage(QWidget):
         self.var2Box.addItems(self.selectorVars)
         self.positionBox.addItems(["Goalkeepers", "Defenders", "Midfielders", "Attackers"])
 
-        self.graphFrame = self.createGraphFrame()
-        self.graph = PandasGraph(self, self.graphFrame).createGraph()
-
-        self.mainLayout.addLayout(self.selectorLayout)
-        self.mainLayout.addWidget(self.graph)
-
         self.selectorLayout.addWidget(self.var1Box)
         self.selectorLayout.addWidget(self.var2Box)
         self.selectorLayout.addWidget(self.positionBox)
+
+        self.graphFrame = self.createGraphFrame()
+        self.graph = PandasGraph(self, self.graphFrame).createGraph()
+
+        self.var1Box.currentIndexChanged.connect(self.createGraph)
+        self.var2Box.currentIndexChanged.connect(self.createGraph)
+        self.positionBox.currentIndexChanged.connect(self.createGraph)
+
+        self.mainLayout.addWidget(self.graph)
 
     def createGraphFrame(self):
         positions = {"Goalkeepers": 1, "Defenders": 2, "Midfielders": 3, "Attackers": 4}

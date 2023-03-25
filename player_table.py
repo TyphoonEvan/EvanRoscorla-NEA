@@ -27,7 +27,7 @@ class PlayerTable(QWidget):
         super(QWidget, self).__init__(parent)
         self.mainlayout = QVBoxLayout(self)
         self.playerslayout = QTableView()
-        self.searchLayout = QHBoxLayout(self)
+        self.searchLayout = QHBoxLayout()
         self.searchBar = QLineEdit(self)
         self.searchButton = QPushButton("Search")
         self.searchButton.clicked.connect(self.searchTable)

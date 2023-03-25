@@ -169,7 +169,7 @@ class UserTeamWidget(QWidget):
         self.subsLayout.addWidget(self.sub4)
 
     def getUserTeam(self):
-        filename = self.GetLastModified().name
+        filename = self.GetLastModified("teams").name
         filename = "teams\\"+filename
         with open(filename, "rb") as file:
             data = file.read()
@@ -187,7 +187,7 @@ class UserTeamWidget(QWidget):
             id = ids[i]
             data[str(i+1)] = id
         data = json.dumps(data)
-        filename = self.GetLastModified().name
+        filename = self.GetLastModified("teams").name
         filename = "teams\\"+filename
         with open(filename, "w") as file:
             file.write(data)
@@ -368,7 +368,7 @@ class UserTeamWidget(QWidget):
             id = self.ids[index]
             data[str(i+1)] = id
         data = json.dumps(data)
-        filename = self.GetLastModified().name
+        filename = self.GetLastModified("teams").name
         filename = "teams\\"+filename
         with open(filename, "w") as file:
             file.write(data)
@@ -428,8 +428,9 @@ class UserTeamWidget(QWidget):
                 icon = IconGenerator.GetIcon(team)
                 dropdowns[i].addItem(icon, player)
 
-    def GetLastModified():
-        items = os.scandir("teams")
+    @staticmethod
+    def GetLastModified(dir):
+        items = os.scandir(dir)
         def get_modified(entry):
             return entry.stat().st_mtime
         sorted = []
