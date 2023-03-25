@@ -122,7 +122,7 @@ class PandasGraph(QWidget):
         colourList = [pg.mkColor(255-int((xVals[i]/maxX)*225), int((yVals[i]/maxY)*225), 63, 255) for i in range(len(xVals))]
         plot.setData(xVals, yVals, data=self.dataframe.iloc[:, 2], pen="w", hoverable=True, setAcceptHoverEvents=True, brush=colourList)
         graph.addItem(plot)
-        graph.setBackground("white")
+        graph.setBackground("#323232")
         graph.setTitle(self.getTitle())
         graph.setLabel("left", self.getYAxis())
         graph.setLabel("bottom", self.getXAxis())

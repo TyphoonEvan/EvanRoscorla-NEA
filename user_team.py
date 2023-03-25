@@ -56,6 +56,10 @@ class UserTeamWidget(QWidget):
         self.subsLayout = QHBoxLayout()
         self.playersframe = playersframe
 
+        self.pitchLayout.setHorizontalSpacing(20)
+        self.pitchLayout.setVerticalSpacing(60)
+        self.buttonsFrame.setFixedWidth(200)
+
         self.buttonsFrame.setLayout(self.buttonsLayout)
         self.buttonsFrame.setFrameShape(1)
         self.teamLayout.addLayout(self.pitchLayout)
