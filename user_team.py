@@ -238,6 +238,8 @@ class UserTeamWidget(QWidget):
                     if positions.count(3) >= 1 or positions.count(3) <= 5:
                         if positions.count(4) >= 1 or positions.count(4) <= 5:
                             valid = True
+                            team = teamframe.head(11)
+                            subs = teamframe.tail(4)
                             return team, subs
                         else:
                             temp = teamframe.head(1)
@@ -363,7 +365,7 @@ class UserTeamWidget(QWidget):
         self.populateSubs(True, subslist)
 
     def saveTeam(self):
-        dropdownslist = [self.player1, self.player2, self.player3, self.player4, self.player5, self.player6, self.player7, self.player8, self.player9, self.player10, self.player11]
+        dropdownslist = [self.player1, self.player2, self.player3, self.player4, self.player5, self.player6, self.player7, self.player8, self.player9, self.player10, self.player11, self.sub1, self.sub2, self.sub3, self.sub4]
         data = self.getUserTeam()
         for i in range(11):
             currentdropdown = dropdownslist[i]
