@@ -102,6 +102,9 @@ class CreateAccount(QDialog):
         self.button.clicked.connect(self.create)
         self.show()
 
+    def create(self):
+        self.close()
+
 class Login(QDialog):
     def __init__(self):
         super().__init__()
@@ -128,21 +131,24 @@ class Login(QDialog):
     def login(self):
         username = self.nameline.text()
         password = self.passwordline.text()
+        try:
+            filename = "config\\" + username + ".cnfg"
+            file = open(filename, "rb")
+            data = file.read()
+            file.close()
 
-        filename = "config\\" + username + ".cnfg"
-        file = open(filename, "rb")
-        data = file.read()
-        file.close()
-
-        keyFile = open("key.key", "rb")
-        key = keyFile.read()
-        file.close()
-        f = Fernet(key)
-        data = f.decrypt(data)
-        data = data.decode("utf-8")
-        data = ast.literal_eval(data)
-        if data["password"] == password:
-            globalGetUserTeam(username)
+            keyFile = open("key.key", "rb")
+            key = keyFile.read()
+            file.close()
+            f = Fernet(key)
+            data = f.decrypt(data)
+            data = data.decode("utf-8")
+            data = ast.literal_eval(data)
+            if data["password"] == password:
+                globalGetUserTeam(username)
+        except FileNotFoundError:
+            pass
+        self.close()
 
 def globalGetUserTeam(username):
     UserTeamWidget.getUserTeam(UserTeamWidget)

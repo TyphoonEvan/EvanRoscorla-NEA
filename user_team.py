@@ -94,6 +94,8 @@ class UserTeamWidget(QWidget):
         items = ["Total Points", "Points Per Game", "Goals", "Assists", "Predicted Goals", "Predicted Assists", "Predicted Saves", "Predicted Points"]
         self.sortSelector.addItems(items)
         self.sortSelector.currentIndexChanged.connect(self.setOrder)
+        
+        self.droplist = []
 
         #creates dropdown
         self.player10 = QComboBox()
@@ -155,8 +157,8 @@ class UserTeamWidget(QWidget):
         self.saveButton.clicked.connect(self.saveTeam)
 
         self.dataframe = self.tempframe.sort_values("second_name")
-        self.createDropDowns(False, None)
-        self.setUserTeam()
+        self.createDropDowns(False, None, None)
+        self.setUserTeam(1)
         self.setFormation()
 
         self.sortSelector.setFixedSize(150, 40)
@@ -180,6 +182,48 @@ class UserTeamWidget(QWidget):
             data = json.loads(data)
             file.close()
             return data
+        
+    def sortDataframes(self, type):
+        items = ["total_points", "points_per_game", "goals_scored", "assists", "predicted_goals_scored", "predicted_assists", "predicted_saves", "predicted_points_per_game"]
+        type = items[type]
+
+        self.goalkeepersframe = self.tempframe.query("element_type == 1")
+        self.defendersframe = self.tempframe.query("element_type == 2")
+        self.midfieldersframe = self.tempframe.query("element_type == 3")
+        self.attackersframe = self.tempframe.query("element_type == 4")
+
+        self.goalkeepersframe.sort_values(type, ascending=False)
+        self.defendersframe.sort_values(type, ascending=False)
+        self.midfieldersframe.sort_values(type, ascending=False)
+        self.attackersframe.sort_values(type, ascending=False)
+
+        self.goalkeepers = []
+        for i in range(len(self.goalkeepersframe.index)):
+            currentid = self.goalkeepersframe["id"].iloc[i]
+            index = self.ids.index(currentid)
+            name = self.fullnames[index]
+            self.goalkeepers.append(name)
+
+        self.defenders = []
+        for i in range(len(self.defendersframe.index)):
+            currentid = self.defendersframe["id"].iloc[i]
+            index = self.ids.index(currentid)
+            name = self.fullnames[index]
+            self.defenders.append(name)
+
+        self.midfielders = []
+        for i in range(len(self.midfieldersframe.index)):
+            currentid = self.midfieldersframe["id"].iloc[i]
+            index = self.ids.index(currentid)
+            name = self.fullnames[index]
+            self.midfielders.append(name)
+
+        self.attackers = []
+        for i in range(len(self.attackersframe.index)):
+            currentid = self.attackersframe["id"].iloc[i]
+            index = self.ids.index(currentid)
+            name = self.fullnames[index]
+            self.attackers.append(name)
 
     def setOrder(self, type):
         team, subs = self.sortTeam(type)
@@ -196,7 +240,7 @@ class UserTeamWidget(QWidget):
         with open(filename, "w") as file:
             file.write(data)
             file.close()
-        self.setUserTeam()
+        self.setUserTeam(type)
 
     def sortTeam(self, type):
         dropdowns = [self.player2, 
@@ -227,7 +271,10 @@ class UserTeamWidget(QWidget):
             teamframe = pd.concat([teamframe, player], axis=0)
         items = ["total_points", "points_per_game", "goals_scored", "assists", "predicted_goals_scored", "predicted_assists", "predicted_saves", "predicted_points_per_game"]
         teamframe = teamframe.sort_values(items[type], ascending=False)
-        teamframe = teamframe.reset_index()
+        try:
+            teamframe = teamframe.reset_index()
+        except ValueError:
+            pass
         valid = False
         while valid == False:
             team = teamframe.head(11)
@@ -258,24 +305,24 @@ class UserTeamWidget(QWidget):
                 teamframe.drop(1, axis=0)
                 teamframe = pd.concat([teamframe, temp], axis=0)
                     
-    def createDropDowns(self, isPlayerTeam, idlist):
+    def createDropDowns(self, isPlayerTeam, idlist, type):
         if isPlayerTeam == False:
-            self.goalkeepers = self.createPlayerLists(1, isPlayerTeam, None)
-            self.defenders = self.createPlayerLists(2, isPlayerTeam, None)
-            self.midfielders = self.createPlayerLists(3, isPlayerTeam, None)
-            self.attackers = self.createPlayerLists(4, isPlayerTeam, None)
+            self.goalkeepers = self.createPlayerLists(1, isPlayerTeam, None, 1)
+            self.defenders = self.createPlayerLists(2, isPlayerTeam, None, 1)
+            self.midfielders = self.createPlayerLists(3, isPlayerTeam, None, 1)
+            self.attackers = self.createPlayerLists(4, isPlayerTeam, None, 1)
         for i in range(11):
             if isPlayerTeam == True:
                 currentid = idlist[i]
                 position = self.getPosition(currentid)
                 if position == 1:
-                    self.goalkeepers = self.createPlayerLists(1, isPlayerTeam, currentid)
+                    self.goalkeepers = self.createPlayerLists(1, isPlayerTeam, currentid, type)
                 elif position == 2:
-                    self.defenders = self.createPlayerLists(2, isPlayerTeam, currentid)
+                    self.defenders = self.createPlayerLists(2, isPlayerTeam, currentid, type)
                 elif position == 3:
-                    self.midfielders = self.createPlayerLists(3, isPlayerTeam, currentid)
+                    self.midfielders = self.createPlayerLists(3, isPlayerTeam, currentid, type)
                 elif position == 4:
-                    self.attackers = self.createPlayerLists(4, isPlayerTeam, currentid)
+                    self.attackers = self.createPlayerLists(4, isPlayerTeam, currentid, type)
             self.populateDropDown(i)
     
     def populateDropDown(self, num):
@@ -294,11 +341,11 @@ class UserTeamWidget(QWidget):
             self.defenders, 
             self.defenders, 
             self.defenders, 
+            self.defenders, 
             self.midfielders, 
             self.midfielders, 
             self.midfielders, 
             self.midfielders, 
-            self.attackers, 
             self.attackers, 
             self.attackers]
         currentposition = positions[num]
@@ -312,19 +359,24 @@ class UserTeamWidget(QWidget):
             icon = IconGenerator.GetIcon(team)
             currentposition.addItem(icon, player)
 
-    def createPlayerLists(self, typenum, isplayerteam, currentid):
+    def createPlayerLists(self, typenum, isplayerteam, currentid, type):
         currentname = ""
         if isplayerteam == True:
-            currentplayer = self.tempframe[self.tempframe["id"]==currentid]#gets player from the main dataframe
-            currentfirstname = currentplayer.iloc[0, 2]#gets first name
-            currentsecondname = currentplayer.iloc[0, 3]#gets first name
+            currentplayer = self.playersframe[self.playersframe["id"]==currentid]#gets player from the main dataframe
+            currentfirstname = currentplayer["first_name"].to_list()[0]#gets first name
+            currentsecondname = currentplayer["second_name"].to_list()[0]#gets first name
             currentname = currentfirstname + " " + currentsecondname
-        players = self.createNamesList(typenum, isplayerteam, self.tempframe, currentname)
+            self.priceUpdate()
+        players = self.createNamesList(typenum, isplayerteam, self.tempframe, currentname, type)
         return players
     
-    @staticmethod
-    def createNamesList(typenum, isplayerteam, playersframe, currentname):
+    def createNamesList(self, typenum, isplayerteam, playersframe, currentname, type):
         playersframe = playersframe[playersframe["element_type"]==typenum]#gets all players in a position
+        items = ["total_points", "points_per_game", "goals_scored", "assists", "predicted_goals_scored", "predicted_assists", "predicted_saves", "predicted_points_per_game"]
+        type = items[type]
+        playersframe = playersframe.sort_values(type, ascending=False)
+        if isplayerteam == True:
+            playersframe = self.removeExpensive(playersframe, currentname, typenum)
         playersfirstname = playersframe["first_name"].to_list()
         playerssecondname = playersframe["second_name"].to_list()
         players = []
@@ -336,32 +388,51 @@ class UserTeamWidget(QWidget):
             players.insert(0, currentname)#adds player to first position
         return players
     
+    def removeExpensive(self, playersframe, currentname, typenum):
+        index = self.fullnames.index(currentname)
+        price = self.namesandprices[index]["price"]
+        expensivelist = []
+        for i in range(len(self.droplist)):
+            index = self.droplist[i]
+            id = self.ids[index]
+            player = self.playersframe[self.playersframe["id"]==id]
+            if player["element_type"].to_list()[0] == typenum:
+                currentprice = self.prices[index]
+                if currentprice > price:
+                    expensivelist.append(index)
+        playersframe = playersframe.drop(index=expensivelist, axis=0)
+        return playersframe
+    
     def priceUpdate(self):
         maxprice = 1000
         totalcost = 0
-        dropdownslist = [self.player1, self.player2, self.player3, self.player4, self.player5, self.player6, self.player7, self.player8, self.player9, self.player10, self.player11]
-        for i in range(11):
+        dropdownslist = [self.player1, self.player2, self.player3, self.player4, self.player5, self.player6, self.player7, self.player8, self.player9, self.player10, self.player11, self.sub1, self.sub2, self.sub3, self.sub4]
+        for i in range(15):
             currentdropdown = dropdownslist[i]
             currentplayer = str(currentdropdown.currentText())
             for i in range(len(self.namesandprices)):
                 if currentplayer == self.namesandprices[i]["name"]:
                     cost = self.namesandprices[i]["price"]
                     break
-            totalcost-=cost
+            totalcost+=cost
         remainingmoney = maxprice-totalcost
-        for i in range(11):
-            self.tempframe = self.playersframe
-            for x in range(len(self.tempframe)):
-                if self.tempframe.iloc[x,18] > remainingmoney:
-                    self.tempframe.drop(self.tempframe.index[x])
+        try:
+            self.playersframe = self.playersframe.reset_index()
+        except ValueError:
+            pass
+        self.tempframe = self.playersframe
+        self.droplist = []
+        for x in range(len(self.tempframe.index)):
+            if self.tempframe["now_cost"].iloc[x] > remainingmoney:
+                self.droplist.append(x)
 
-    def setUserTeam(self):
+    def setUserTeam(self, type):
         self.tempframe = self.tempframe.sort_values("second_name")
         self.teamdict = self.getUserTeam()
         idslist = list(self.teamdict.values())
         teamlist = idslist[:11]
         subslist = idslist[11:]
-        self.createDropDowns(True, teamlist)
+        self.createDropDowns(True, teamlist, type)
         self.populateSubs(True, subslist)
 
     def saveTeam(self):
@@ -381,7 +452,7 @@ class UserTeamWidget(QWidget):
             file.close()
 
     def reset(self):
-        self.setUserTeam()
+        self.setUserTeam(1)
 
     def getPosition(self, id):
         player = self.tempframe.query("id == @id")
@@ -421,7 +492,7 @@ class UserTeamWidget(QWidget):
         dropdowns = [self.sub1, self.sub2, self.sub3, self.sub4]
         for i in range(4):
             if isPlayerTeam == True:
-                positions[i] = self.createPlayerLists(positions[i], True, idslist[i])
+                positions[i] = self.createPlayerLists(positions[i], True, idslist[i], 1)
             dropdowns[i].clear()
             for player in positions[i]:
                 namePosition = self.fullnames.index(player)

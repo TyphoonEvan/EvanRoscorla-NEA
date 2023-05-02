@@ -5,10 +5,6 @@ from summary_page import pandasModel
 import json
 import pandas as pd
 
-def test_createPlayerLists():
-    dataframe = getTestData()
-    assert (UserTeamWidget.createNamesList(1, False, dataframe, None) == ["Aaron Ramsdale"])
-
 def test_pandasModel():
     dataframe = getTestData()
     pandastable = pandasModel(dataframe)

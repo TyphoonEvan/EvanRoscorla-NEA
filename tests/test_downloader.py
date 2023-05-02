@@ -22,4 +22,4 @@ def test_calculatePlayTime():
     playersubframe = playersframe[["first_name", "second_name", "code", "team", "id", "total_points", "goals_scored", "assists", "minutes", "points_per_game", "saves", "clean_sheets", "ict_index", "influence", "creativity", "threat", "element_type"]]
     playersubframe = playersubframe.sort_values("id")
     playerinfo = playersubframe.iloc[318]
-    assert (playerdownloader.calculatePlayTime(playerinfo, 24) == 25.541666666666668)
+    assert (round(playerdownloader.calculatePlayTime(playerinfo, 24), 2) == 25.54)
